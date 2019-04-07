@@ -97,7 +97,7 @@ class Crypt:
 
 class CalculatorApp(App):
     def build(self):
-        self.icon = 'icon-key-alpha-100.png'
+        self.icon = 'icon.png'
         mainbox = BoxLayout(orientation='vertical',padding=1)
 
         AppW = int(Config.get('graphics', 'width'))
