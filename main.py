@@ -1,35 +1,31 @@
-try:
-    from kivy.app import App
-    from kivy.config import Config
-    from kivy.uix.label import Label
-    from kivy.uix.button import Button
-    from kivy.uix.boxlayout import BoxLayout
-    from kivy.uix.gridlayout import GridLayout
-except:
-    print('Похоже отсутствует библиотека kivy.')
-    print('Следующие команды установят все нужные библиотеки(Это не займет много времени):')
-    print('python3 -m pip install --upgrade pip wheel setuptools')
-    print('python3 -m pip install --upgrade docutils pygments pypiwin32 kivy.deps.sdl2 kivy.deps.glew')
-    print('python3 -m pip install --upgrade kivy.deps.angle')
-    print('python3 -m pip install --upgrade kivy')
-    print('Подробная инструкция: https://kivy.org/doc/stable/installation/installation-windows.html')
-    input('Нажмите любую клавишу для выхода.')
-    exit()
+from kivy.app import App
+from kivy.config import Config
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.lang.builder import Builder
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.recycleview import ScrollView
+from kivy.properties import StringProperty
 
 Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', '360')
-Config.set('graphics', 'height', '640')
+Config.set('graphics', 'width', '405')
+Config.set('graphics', 'height', '720')
 
-def isint(n):
-    try:
-        if n == int(n):
-            return True
-        else:
-            return False
-    except ValueError:
-        return False
+
+class Row(BoxLayout):
+    lable_text = StringProperty("")
 
 class Crypt:
+    def isint(n):
+        try:
+            if n == int(n):
+                return True
+            else:
+                return False
+        except ValueError:
+            return False
+
     def factorization(N):
         n = N
         dividers = []
@@ -94,66 +90,11 @@ class Crypt:
                         result.append(Crypt.NOD(a,b))
                 return result
 
-
-class CalculatorApp(App):
-    def build(self):
-        self.icon = 'icon.png'
-        mainbox = BoxLayout(orientation='vertical',padding=1)
-
-        AppW = int(Config.get('graphics', 'width'))
-        AppH = int(Config.get('graphics', 'height'))
-
-        fontsize = 24
-
-        self.label = Label( text = '0', font_size=fontsize,
-                            halign='right', valign='center',
-                            size_hint=(1,.3), text_size=(AppW, AppH*.3) )
-        mainbox.add_widget(self.label)
-
+class RootWidget(BoxLayout):
+    def __init__(self):
+        super().__init__()
         self.entry_status = '0'
-
-        keyboard = GridLayout(cols=5, size_hint=(1,.7))
-        mainbox.add_widget(keyboard)
-
-        Buttons = [
-            Button(text = '^',      on_press = self.add_operation),
-            Button(text = ' mod ',  on_press = self.add_operation),
-            Button(text = 'φ(x)',   on_press = self.add_euler),
-            Button(text = 'x-¹',    on_press = self.add_operation),
-            Button(text = '<-',     on_press = self.delete),
-
-            Button(text = '×', on_press = self.add_operation),
-            Button(text = '1', on_press = self.add_number),
-            Button(text = '2', on_press = self.add_number),
-            Button(text = '3', on_press = self.add_number),
-            Button(text = 'C', on_press = self.clean),
-
-            Button(text = '÷',   on_press = self.add_operation),
-            Button(text = '4',   on_press = self.add_number),
-            Button(text = '5',   on_press = self.add_number),
-            Button(text = '6',   on_press = self.add_number),
-            Button(text = 'НОД', on_press = self.add_number),
-
-            Button(text = '+',   on_press = self.add_operation),
-            Button(text = '7',   on_press = self.add_number),
-            Button(text = '8',   on_press = self.add_number),
-            Button(text = '9',   on_press = self.add_number),
-            Button(text = '( )', on_press = self.add_parentheses),
-
-            Button(text = '-', on_press = self.add_operation),
-            Button(text = ',', on_press = self.add_operation),
-            Button(text = '0', on_press = self.add_number),
-            Button(text = '.', on_press = self.add_number),
-            Button(text = '=', on_press = self.result)
-        ]
-
-        for button in Buttons:
-            button.font_size = fontsize
-            keyboard.add_widget(button)
-
         self.operations = ['+','-','÷','×',',','^','mod ']
-
-        return mainbox
 
     def replacer(self,string):
         result = string
@@ -162,24 +103,29 @@ class CalculatorApp(App):
         result = result.replace('÷','/')
         result = result.replace('^','**')
         result = result.replace('НОД','Crypt.NOD')
+        result = result.replace('φ','Crypt.Euler_func')
 
         while '-¹mod ' in result:
             strt = result.find('-¹mod ')
-            endn = result.find('-¹mod ') + len('-¹mod ')
+            endn = strt + len('-¹mod ')
 
             index = endn
             while index < len(result) and result[index].isdigit():
                 index +=1
-
-            e = eval(result[0:strt])
-            mod = eval(result[endn:index])
-
-            result = str(Crypt.InvMod(e,mod)) + result[index:]
+            try:
+                e = eval(result[0:strt])
+                mod = eval(result[endn:index])
+            except Exception as e:
+                result = "Ошибка"
+            else:
+                result = str(Crypt.InvMod(e,mod)) + result[index:]
 
         return result
 
     def updateEntry(self):
-        self.label.text = self.entry_status
+        if self.entry_status == '':
+            self.entry_status = '0'
+        self.entry.text = self.entry_status
 
     def add_number(self,instance):
         if self.entry_status == '0':
@@ -210,24 +156,57 @@ class CalculatorApp(App):
             else:
                 buffer = 'НОД('
 
+        elif instance.text == 'φ(x)':
+            if self.entry_status != '':
+                if self.entry_status[lngh-1].isdigit():
+                    buffer = '×φ('
+                else:
+                    buffer = 'φ('
+            else:
+                buffer = 'φ('
+
         self.entry_status += buffer
         self.updateEntry()
 
     def add_operation(self,instance):
-        self.entry_status = self.label.text
+        self.entry_status = self.entry.text
+        if self.entry_status == '0' or self.entry_status == '-':
+            self.entry_status = ''
+
         buffer = instance.text
         buffer = buffer.replace('x-¹','-¹mod ')
 
-        if self.entry_status == '0':
-            return
+        if buffer == ',':
+            if '(' not in self.entry_status:
+                buffer = ''
 
         lngh = len(self.entry_status)
+
+        if self.entry_status[lngh-1:lngh] == '^' and buffer == ' mod ':
+            self.delete(None)
+            A = ''
+            for i in range(len(self.entry_status)-1,-1,-1):
+                if self.entry_status[i].isdigit() or self.entry_status[i] == '.':
+                    A += self.entry_status[i]
+                else: break
+            A = A[::-1]
+            cut = self.entry_status.rfind(A)
+            self.entry_status = self.entry_status[:cut]
+            self.entry_status += 'pow('+A+','
+            buffer = ''
         for oprtn in self.operations:
             if self.entry_status[lngh-len(oprtn):lngh] == oprtn:
                 self.delete(None)
                 break
 
-        self.entry_status += buffer
+        lngh = len(self.entry_status)
+        if self.entry_status[lngh-1:lngh] == '(':
+            if buffer == '-':
+                self.entry_status += buffer
+
+        elif self.entry_status != '' or buffer == '-':
+            self.entry_status += buffer
+
         self.updateEntry()
 
     def result(self,instance):
@@ -249,12 +228,15 @@ class CalculatorApp(App):
         except Exception as e:
             self.entry_status = 'Ошибка'
         else:
-            if isint(self.entry_status):
-                self.entry_status = int(self.entry_status)
+            try:
+                if Crypt.isint(self.entry_status):
+                    self.entry_status = int(self.entry_status)
+            except Exception as e: None
 
             self.entry_status = str(self.entry_status)
 
-        if self.entry_status != self.label.text:
+        if self.entry_status != self.entry.text:
+            self.add_to_story()
             self.updateEntry()
             self.entry_status = '0'
 
@@ -271,21 +253,23 @@ class CalculatorApp(App):
 
         if self.entry_status[lngh-1].isdigit():
             if left - right > 0:
-                try:
-                    strt = self.entry_status.rfind('(') + 1
-                    endn = self.entry_status[strt:].find(')')
-                    if endn == -1: endn = lngh
+                strt = self.entry_status.rfind('(') + 1
+                endn = self.entry_status[strt:].find(')')
+                if endn == -1: endn = lngh
+                if self.entry_status[strt-2] != 'φ':
+                    try:
+                        tmp = self.replacer(self.entry_status[ strt : endn ])
+                        eval_result = str(eval(tmp)) != tmp
 
-                    tmp = self.replacer(self.entry_status[ strt : endn ])
-                    eval_result = str(eval(tmp)) != tmp
-
-                except Exception as e:
-                    raise
-                else:
-                    if eval_result:
-                        buffer = ')'
+                    except Exception as e:
+                        raise
                     else:
-                        buffer = '×('
+                        if eval_result:
+                            buffer = ')'
+                        else:
+                            buffer = '×('
+                else:
+                    buffer = ')'
             else:
                 buffer = '×('
 
@@ -305,13 +289,9 @@ class CalculatorApp(App):
         self.entry_status += buffer
         self.updateEntry()
 
-    def add_euler(self,instance):
-        print("Клавиша '%s' в разработке." % instance.text)
-        pass
-
     def delete(self,instance):
         lngh = len(self.entry_status)
-        exeptions = ['-¹mod ',' mod ','НОД(']
+        exeptions = ['-¹mod ',' mod ','НОД(', 'φ(','pow(']
         deleted = False
         for e in exeptions:
             if self.entry_status[lngh-len(e):lngh] == e:
@@ -322,14 +302,22 @@ class CalculatorApp(App):
         if not deleted:
             self.entry_status = self.entry_status[0:lngh-1]
 
-        if not self.entry_status:
-            self.entry_status = '0'
         self.updateEntry()
 
     def clean(self,instance):
-        self.entry_status = '0'
-        self.updateEntry()
+        if self.entry.text == '0':
+            self.story.clear_widgets()
+        else:
+            self.entry_status = '0'
+            self.updateEntry()
 
+    def add_to_story(self):
+        self.story.add_widget(Row(lable_text=str(self.entry.text)))
+
+class MyApp(App):
+    def build(self):
+        root = Builder.load_string(open("main.kv", encoding='utf-8').read())
+        return root
 
 if __name__ == '__main__':
-    CalculatorApp().run()
+    MyApp().run()
