@@ -15,11 +15,10 @@
     halign: 'right'
     valign: 'center'
 
-
 RootWidget:
   canvas.before:
     Color:
-      rgba: .13,.15,.20, 1
+      rgba: .1,.1,.13, 1
     Rectangle:
       pos: self.pos
       size: self.size
@@ -27,11 +26,10 @@ RootWidget:
   story:story
   entry: entry
   BoxLayout:
-    id:top_box
     orientation: 'vertical'
     size_hint: 1, 0.3
-    padding: [0,0,self.width//50,self.width//50]
-    spacing: 1
+    padding: [0,0,self.width//50,self.height//100]
+    spacing: self.height//10
     ScrollView:
       scroll_y: 0
       scroll_x: 1
@@ -44,7 +42,7 @@ RootWidget:
     Label:
       id: entry
       text: '0'
-      size_hint_y: .4
+      size_hint_y: 0.3
       font_size: self.height
       max_lines:1
       shorten: True
@@ -57,7 +55,7 @@ RootWidget:
   GridLayout:
     canvas.before:
       Color:
-        rgba: .16,.17,.20, 1
+        rgba: .15,.15,.17, 1
       Rectangle:
         pos: self.pos
         size: self.size
@@ -69,7 +67,7 @@ RootWidget:
       text: '^'
       on_press: root.add_operation(self)
     Button:
-      text: ' mod '
+      text: 'mod'
       on_press: root.add_operation(self)
     Button:
       text: 'φ(x)'
@@ -143,13 +141,14 @@ RootWidget:
       on_press: root.add_number(self)
     Button:
       text: '='
-      background_color: 1, 0.3, 0.1, 1
+      background_down: ''
+      background_color: 1, 0.2, 0.1, .9
       on_press: root.result(self)
 
 <Button>:
   shorten: False
   background_normal: ''
-  background_color: 1, 1, 1, .03
+  background_color: 1, 1, 1, .05
   text_size: self.width, self.height
   font_size: self.height//3
   halign: 'center'

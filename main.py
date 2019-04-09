@@ -6,17 +6,26 @@ from kivy.lang.builder import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.properties import StringProperty
+from kivy.properties import NumericProperty
 from kivy.uix.recycleview import ScrollView
 
 Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', '360')
-Config.set('graphics', 'height', '640')
+Config.set('graphics', 'width', '306')
+Config.set('graphics', 'height', '544')
 
 class Row(BoxLayout):
-    fs = int(int(Config.get('graphics', 'height'))//22)
+    fs = NumericProperty()
     lable_text = StringProperty("")
 
 class Crypt:
+    def isnum(n):
+        try:
+            n = float(n)
+        except Exception as e:
+            return False
+        else:
+            return True
+
     def isint(n):
         try:
             if n == int(n):
@@ -96,39 +105,18 @@ class RootWidget(BoxLayout):
         self.entry_status = '0'
         self.operations = ['+','-','÷','×',',','^','mod ']
 
-    def replacer(self,string):
-        result = string
-        result = result.replace(' mod ','%')
-        result = result.replace('×','*')
-        result = result.replace('÷','/')
-        result = result.replace('^','**')
-        result = result.replace('НОД','Crypt.NOD')
-        result = result.replace('φ','Crypt.Euler_func')
-
-        while '-¹mod ' in result:
-            strt = result.find('-¹mod ')
-            endn = strt + len('-¹mod ')
-
-            index = endn
-            while index < len(result) and result[index].isdigit():
-                index +=1
-            try:
-                e = eval(result[0:strt])
-                mod = eval(result[endn:index])
-            except Exception as e:
-                result = "Ошибка"
-            else:
-                result = str(Crypt.InvMod(e,mod)) + result[index:]
-
-        return result
-
     def updateEntry(self):
-        if self.entry_status == '' or self.entry_status == '()':
+        if self.entry_status == '':
             self.entry_status = '0'
         self.entry.text = self.entry_status
 
+    def add_to_story(self):
+        self.story.add_widget(Row(lable_text=str(self.entry.text),
+                            fs=int(int(self.entry.font_size)//1.5) ))
+
     def add_number(self,instance):
-        if self.entry_status == '0':
+        emptys = ['0', 'Ошибка']
+        if self.entry_status in emptys:
             self.entry_status = ''
 
         buffer = instance.text
@@ -137,15 +125,16 @@ class RootWidget(BoxLayout):
         if instance.text == '.':
             if len(self.entry_status) == 0:
                 buffer = '0.'
-
-            elif self.entry_status[lngh-1:lngh] == '.':
-                return
-
             else:
-                for oprtn in self.operations:
-                    if self.entry_status[lngh-len(oprtn):lngh] == oprtn:
+                if self.entry_status[lngh-1].isdigit():
+                    for i in range(lngh-2,-1,-1):
+                        if not self.entry_status[i:lngh-1].isdigit():
+                            if self.entry_status[i] == '.':
+                                buffer = ''
+                            break
+                else:
+                    if self.entry_status[lngh-1] != '.':
                         buffer = '0.'
-                        break
 
         elif instance.text == 'НОД':
             if self.entry_status != '':
@@ -169,31 +158,25 @@ class RootWidget(BoxLayout):
         self.updateEntry()
 
     def add_operation(self,instance):
+        emptys = ['0', '-','Ошибка']
         self.entry_status = self.entry.text
-        if self.entry_status == '0' or self.entry_status == '-' or self.entry_status == 'Ошибка':
+        if self.entry_status in emptys:
             self.entry_status = ''
 
         buffer = instance.text
+        buffer = buffer.replace('mod',' mod ')
         buffer = buffer.replace('x-¹','-¹mod ')
+
 
         if buffer == ',':
             if '(' not in self.entry_status:
                 buffer = ''
 
         lngh = len(self.entry_status)
+        if self.entry_status[lngh-1:lngh] == '.':
+            self.entry_status += '0'
 
-        if self.entry_status[lngh-1:lngh] == '^' and buffer == ' mod ':
-            self.delete(None)
-            A = ''
-            for i in range(len(self.entry_status)-1,-1,-1):
-                if self.entry_status[i].isdigit() or self.entry_status[i] == '.':
-                    A += self.entry_status[i]
-                else: break
-            A = A[::-1]
-            cut = self.entry_status.rfind(A)
-            self.entry_status = self.entry_status[:cut]
-            self.entry_status += 'pow('+A+','
-            buffer = ''
+        lngh = len(self.entry_status)
         for oprtn in self.operations:
             if self.entry_status[lngh-len(oprtn):lngh] == oprtn:
                 self.delete(None)
@@ -209,9 +192,94 @@ class RootWidget(BoxLayout):
 
         self.updateEntry()
 
-    def result(self,instance):
-        buffer = self.replacer(self.entry_status)
+    def EntryParser(self):
+        def magic(string):
+            def junk(string):
+                list(string)
+                numb = ''
+                symbl = ''
+                new = []
+                for i in range(len(string)):
+                    try: int(numb+string[i])
+                    except ValueError:
+                        if numb:
+                            new.append(numb)
+                            numb = ''
+                        symbl += string[i]
+                        if i == len(string)-1:
+                            new.append(symbl)
+                    else:
+                        if symbl:
+                            new.append(symbl)
+                            symbl = ''
+                        numb += string[i]
+                        if i == len(string)-1:
+                            new.append(numb)
+                i = 0
+                while i < len(new):
+                    if new[i] == '.':
+                        if new[i-1].isdigit():
+                            if new[i+1] and new[i+1].isdigit():
+                                new[i] += new.pop(i+1)
+                                new[i-1] += new.pop(i)
+                                i -= 1
+                            else:
+                                new.pop(i)
+                                i -= 1
+                    i += 1
+                i = 0
+                while i < len(new):
+                    l = len(new[i])
+                    if new[i][l-1:l] == '-':
+                        if i == 0:
+                            new[i] += new.pop(i+1)
+                        elif new[i][l-2] == '(':
+                            new[i] = new[i][:l-1]
+                            new[i+1] = '-'+new[i+1]
+                    i += 1
 
+                return new
+            def puck(massive):
+                string = ''
+                for i in massive:
+                    string += i
+                return string
+            buffer = junk(string)
+
+            i = 0
+            while i < len(buffer):
+                if buffer[i] == '**' and buffer[i+2] == '%':
+                    try:
+                        A = int(buffer[i-1])
+                        POW = int(buffer[i+1])
+                        MOD = int(buffer[i+3])
+                    except Exception as e: return 'Ошибка'
+                    else: RESULT = pow(A,POW,MOD)
+                    buffer[i-1] = str(RESULT)
+                    buffer.pop(i)
+                    buffer.pop(i)
+                    if i == 1:
+                        buffer.pop(i)
+                        buffer.pop(i)
+                    i -= 1
+
+                elif buffer[i] == '-¹mod ':
+                    try:
+                        E = int(buffer[i-1])
+                        MOD = int(buffer[i+1])
+                    except Exception as e: return 'Ошибка'
+                    else: RESULT = Crypt.InvMod(E,MOD)
+                    buffer[i-1] = str(RESULT)
+                    for j in range(i+1,i-1,-1):
+                        buffer.pop(j)
+                    i -= 1
+
+                i += 1
+
+            return puck(buffer)
+
+        if self.entry_status[len(self.entry_status)-1] == '(':
+            return self.entry_status
         left = 0
         right = 0
         for i in range(len(self.entry_status)):
@@ -219,9 +287,45 @@ class RootWidget(BoxLayout):
                 left +=1
             elif self.entry_status[i] == ')':
                 right +=1
+        self.entry_status += ')'*(left-right)
+        self.updateEntry()
 
-        buffer += ')'*(left-right)
+        string = self.entry_status
 
+        result = string
+        result = result.replace(' mod ','%')
+        result = result.replace('×','*')
+        result = result.replace('÷','/')
+        result = result.replace('^','**')
+        result = result.replace('НОД','Crypt.NOD')
+        result = result.replace('φ','Crypt.Euler_func')
+
+        if '(' in result and ')' in result:
+            END = result.find(')')
+            STRT = result[:END].rfind('(')
+            while '(' in result and ')' in result:
+                buffer = result[STRT+1:END]
+                if '-¹mod ' in buffer or ('**' in buffer and '%' in buffer):
+                    buffer = magic(buffer)
+
+                try:
+                    buffer = str(eval(buffer))
+                except Exception as e: break
+                else:
+                    result = result[:STRT]+buffer+result[END+1:]
+
+                END = result[END+1:].find(')')
+                STRT = result[:STRT].rfind('(')
+                if END == -1 or STRT == -1:
+                    break
+
+        if '-¹mod ' in result or ('**' in result and '%' in result):
+            result = magic(result)
+
+        return result
+
+    def result(self,instance):
+        buffer = self.EntryParser()
         try:
             self.entry_status = eval(buffer)
 
@@ -241,6 +345,10 @@ class RootWidget(BoxLayout):
             self.entry_status = '0'
 
     def add_parentheses(self,instance):
+        emptys = ['0', 'Ошибка']
+        if self.entry_status in emptys:
+            self.entry_status = ''
+
         buffer = ''
         left = 0
         right = 0
@@ -250,26 +358,11 @@ class RootWidget(BoxLayout):
                 left +=1
             elif self.entry_status[i] == ')':
                 right +=1
-
-        if self.entry_status[lngh-1].isdigit():
+        if self.entry_status == '':
+            buffer = '('
+        elif self.entry_status[lngh-1].isdigit():
             if left - right > 0:
-                strt = self.entry_status.rfind('(') + 1
-                endn = self.entry_status[strt:].find(')')
-                if endn == -1: endn = lngh
-                if self.entry_status[strt-2] != 'φ':
-                    try:
-                        tmp = self.replacer(self.entry_status[ strt : endn ])
-                        eval_result = str(eval(tmp)) != tmp
-
-                    except Exception as e:
-                        raise
-                    else:
-                        if eval_result:
-                            buffer = ')'
-                        else:
-                            buffer = '×('
-                else:
-                    buffer = ')'
+                buffer = ')'
             else:
                 buffer = '×('
 
@@ -310,9 +403,6 @@ class RootWidget(BoxLayout):
         else:
             self.entry_status = '0'
             self.updateEntry()
-
-    def add_to_story(self):
-        self.story.add_widget(Row(lable_text=str(self.entry.text)))
 
 class MyApp(App):
     def build(self):
