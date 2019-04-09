@@ -5,15 +5,15 @@ from kivy.uix.button import Button
 from kivy.lang.builder import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.uix.recycleview import ScrollView
 from kivy.properties import StringProperty
+from kivy.uix.recycleview import ScrollView
 
 Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', '405')
-Config.set('graphics', 'height', '720')
-
+Config.set('graphics', 'width', '360')
+Config.set('graphics', 'height', '640')
 
 class Row(BoxLayout):
+    fs = int(int(Config.get('graphics', 'height'))//22)
     lable_text = StringProperty("")
 
 class Crypt:
@@ -123,7 +123,7 @@ class RootWidget(BoxLayout):
         return result
 
     def updateEntry(self):
-        if self.entry_status == '':
+        if self.entry_status == '' or self.entry_status == '()':
             self.entry_status = '0'
         self.entry.text = self.entry_status
 
@@ -170,7 +170,7 @@ class RootWidget(BoxLayout):
 
     def add_operation(self,instance):
         self.entry_status = self.entry.text
-        if self.entry_status == '0' or self.entry_status == '-':
+        if self.entry_status == '0' or self.entry_status == '-' or self.entry_status == 'Ошибка':
             self.entry_status = ''
 
         buffer = instance.text

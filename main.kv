@@ -1,15 +1,25 @@
 <Row>:
   size_hint_y: None
+  height: label.texture_size[1]
   Label:
-    id: this_label
+    id: label
     text: root.lable_text
-    font_size: 70
+    font_size: root.fs
+    text_size: self.width, None
+    size_hint: (1, None)
+    size: self.parent.width, self.texture_size[1]
+    max_lines:1
+    shorten: True
+    shorten_from: 'left'
     color: 1, 1, 1, .5
+    halign: 'right'
+    valign: 'center'
+
 
 RootWidget:
   canvas.before:
     Color:
-      rgba: .13,.15,.17, 1
+      rgba: .13,.15,.20, 1
     Rectangle:
       pos: self.pos
       size: self.size
@@ -17,10 +27,11 @@ RootWidget:
   story:story
   entry: entry
   BoxLayout:
+    id:top_box
     orientation: 'vertical'
-    padding: 20
-    spacing: 1
     size_hint: 1, 0.3
+    padding: [0,0,self.width//50,self.width//50]
+    spacing: 1
     ScrollView:
       scroll_y: 0
       scroll_x: 1
@@ -33,8 +44,14 @@ RootWidget:
     Label:
       id: entry
       text: '0'
-      font_size: 100
       size_hint_y: .4
+      font_size: self.height
+      max_lines:1
+      shorten: True
+      shorten_from: 'left'
+      halign: 'right'
+      valign: 'bottom'
+      text_size: self.width, self.height
 
 
   GridLayout:
@@ -129,18 +146,11 @@ RootWidget:
       background_color: 1, 0.3, 0.1, 1
       on_press: root.result(self)
 
-<Label>:
-  max_lines:1
-  shorten: True
-  shorten_from: 'left'
-  halign: 'right'
-  valign: 'bottom'
-  text_size: self.width, self.height
-
 <Button>:
+  shorten: False
   background_normal: ''
   background_color: 1, 1, 1, .03
-  font_size: 80
   text_size: self.width, self.height
+  font_size: self.height//3
   halign: 'center'
   valign: 'center'
