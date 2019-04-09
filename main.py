@@ -66,6 +66,7 @@ class Crypt:
         return dividers,degrees
 
     def Euler_func(n):
+        n = int(n)
         if n > 1:
             dividers = Crypt.factorization(n)[0]
             if not dividers:
@@ -299,23 +300,37 @@ class RootWidget(BoxLayout):
         result = result.replace('^','**')
         result = result.replace('НОД','Crypt.NOD')
         result = result.replace('φ','Crypt.Euler_func')
-
+        exeptions = ['Crypt.Euler_func','Crypt.NOD']
         if '(' in result and ')' in result:
             END = result.find(')')
             STRT = result[:END].rfind('(')
             while '(' in result and ')' in result:
                 buffer = result[STRT+1:END]
+                FUNC_BEFORE = ''
+                for e in exeptions:
+                    if result[STRT-len(e):STRT] == e:
+                        FUNC_BEFORE = e
+                        break
+
                 if '-¹mod ' in buffer or ('**' in buffer and '%' in buffer):
                     buffer = magic(buffer)
 
                 try:
-                    buffer = str(eval(buffer))
-                except Exception as e: break
-                else:
-                    result = result[:STRT]+buffer+result[END+1:]
+                    if FUNC_BEFORE:
+                        buffer = FUNC_BEFORE+'('+buffer+')'
+                    tmp = eval(buffer)
 
-                END = result[END+1:].find(')')
-                STRT = result[:STRT].rfind('(')
+                    if Crypt.isint(tmp):
+                        tmp = int(tmp)
+                    buffer = str(tmp)
+                except Exception as e:
+                    END = result[END+1:].find(')')
+                    STRT = result[:STRT].rfind('(')
+                else:
+                    result = result[:STRT-len(FUNC_BEFORE)]+buffer+result[END+1:]
+                    END = result.find(')')
+                    STRT = result[:END].rfind('(')
+
                 if END == -1 or STRT == -1:
                     break
 
@@ -332,10 +347,8 @@ class RootWidget(BoxLayout):
         except Exception as e:
             self.entry_status = 'Ошибка'
         else:
-            try:
-                if Crypt.isint(self.entry_status):
-                    self.entry_status = int(self.entry_status)
-            except Exception as e: None
+            if Crypt.isint(self.entry_status):
+                self.entry_status = int(self.entry_status)
 
             self.entry_status = str(self.entry_status)
 
