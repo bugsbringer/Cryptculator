@@ -8,11 +8,10 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.properties import StringProperty
 from kivy.properties import NumericProperty
 from kivy.uix.recycleview import ScrollView
-W = ('306','1080')
-H = ('544','1920')
+
 Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', W[1])
-Config.set('graphics', 'height', H[1])
+Config.set('graphics', 'width', '306')
+Config.set('graphics', 'height', '544')
 
 
 class Row(BoxLayout):
@@ -170,7 +169,7 @@ class RootWidget(BoxLayout):
 
         buffer = instance.text
         buffer = buffer.replace('mod',' mod ')
-        buffer = buffer.replace('x⁻¹','⁻¹mod ')
+        buffer = buffer.replace('x-¹','-¹mod ')
 
 
         if buffer == ',':
@@ -268,7 +267,7 @@ class RootWidget(BoxLayout):
                         buffer.pop(i)
                     i -= 1
 
-                elif buffer[i] == '⁻¹mod ':
+                elif buffer[i] == '-¹mod ':
                     try:
                         E = int(buffer[i-1])
                         MOD = int(buffer[i+1])
@@ -314,7 +313,7 @@ class RootWidget(BoxLayout):
                         FUNC_BEFORE = e
                         break
 
-                if '⁻¹mod ' in buffer or ('**' in buffer and '%' in buffer):
+                if '-¹mod ' in buffer or ('**' in buffer and '%' in buffer):
                     buffer = magic(buffer)
 
                 try:
@@ -340,7 +339,7 @@ class RootWidget(BoxLayout):
                 if END == -1 or STRT == -1:
                     break
 
-        if '⁻¹mod ' in result or ('**' in result and '%' in result):
+        if '-¹mod ' in result or ('**' in result and '%' in result):
             result = magic(result)
 
         return result
@@ -399,7 +398,7 @@ class RootWidget(BoxLayout):
 
     def delete(self,instance):
         lngh = len(self.entry_status)
-        exeptions = ['⁻¹mod ',' mod ','НОД(', 'φ(','pow(']
+        exeptions = ['-¹mod ',' mod ','НОД(', 'φ(','pow(']
         deleted = False
         for e in exeptions:
             if self.entry_status[lngh-len(e):lngh] == e:
