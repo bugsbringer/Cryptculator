@@ -8,10 +8,12 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.properties import StringProperty
 from kivy.properties import NumericProperty
 from kivy.uix.recycleview import ScrollView
-
+W = ('306','1080')
+H = ('544','1920')
 Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', '306')
-Config.set('graphics', 'height', '544')
+Config.set('graphics', 'width', W[1])
+Config.set('graphics', 'height', H[1])
+
 
 class Row(BoxLayout):
     fs = NumericProperty()
@@ -28,12 +30,14 @@ class Crypt:
 
     def isint(n):
         try:
+            int(n)
+        except Exception as e:
+            return False
+        else:
             if n == int(n):
                 return True
             else:
                 return False
-        except ValueError:
-            return False
 
     def factorization(N):
         n = N
@@ -166,7 +170,7 @@ class RootWidget(BoxLayout):
 
         buffer = instance.text
         buffer = buffer.replace('mod',' mod ')
-        buffer = buffer.replace('x-¹','-¹mod ')
+        buffer = buffer.replace('x⁻¹','⁻¹mod ')
 
 
         if buffer == ',':
@@ -264,7 +268,7 @@ class RootWidget(BoxLayout):
                         buffer.pop(i)
                     i -= 1
 
-                elif buffer[i] == '-¹mod ':
+                elif buffer[i] == '⁻¹mod ':
                     try:
                         E = int(buffer[i-1])
                         MOD = int(buffer[i+1])
@@ -281,13 +285,9 @@ class RootWidget(BoxLayout):
 
         if self.entry_status[len(self.entry_status)-1] == '(':
             return self.entry_status
-        left = 0
-        right = 0
-        for i in range(len(self.entry_status)):
-            if self.entry_status[i] == '(':
-                left +=1
-            elif self.entry_status[i] == ')':
-                right +=1
+
+        left = self.entry_status.count('(')
+        right = self.entry_status.count(')')
         self.entry_status += ')'*(left-right)
         self.updateEntry()
 
@@ -300,7 +300,9 @@ class RootWidget(BoxLayout):
         result = result.replace('^','**')
         result = result.replace('НОД','Crypt.NOD')
         result = result.replace('φ','Crypt.Euler_func')
+
         exeptions = ['Crypt.Euler_func','Crypt.NOD']
+
         if '(' in result and ')' in result:
             END = result.find(')')
             STRT = result[:END].rfind('(')
@@ -312,29 +314,33 @@ class RootWidget(BoxLayout):
                         FUNC_BEFORE = e
                         break
 
-                if '-¹mod ' in buffer or ('**' in buffer and '%' in buffer):
+                if '⁻¹mod ' in buffer or ('**' in buffer and '%' in buffer):
                     buffer = magic(buffer)
 
                 try:
                     if FUNC_BEFORE:
                         buffer = FUNC_BEFORE+'('+buffer+')'
+                    elif ',' in buffer:
+                        return 'Ошибка'
                     tmp = eval(buffer)
 
                     if Crypt.isint(tmp):
                         tmp = int(tmp)
                     buffer = str(tmp)
+
                 except Exception as e:
                     END = result[END+1:].find(')')
                     STRT = result[:STRT].rfind('(')
                 else:
                     result = result[:STRT-len(FUNC_BEFORE)]+buffer+result[END+1:]
+
                     END = result.find(')')
                     STRT = result[:END].rfind('(')
 
                 if END == -1 or STRT == -1:
                     break
 
-        if '-¹mod ' in result or ('**' in result and '%' in result):
+        if '⁻¹mod ' in result or ('**' in result and '%' in result):
             result = magic(result)
 
         return result
@@ -363,16 +369,13 @@ class RootWidget(BoxLayout):
             self.entry_status = ''
 
         buffer = ''
-        left = 0
-        right = 0
+        left = self.entry_status.count('(')
+        right = self.entry_status.count(')')
         lngh = len(self.entry_status)
-        for i in range(lngh):
-            if self.entry_status[i] == '(':
-                left +=1
-            elif self.entry_status[i] == ')':
-                right +=1
+
         if self.entry_status == '':
             buffer = '('
+
         elif self.entry_status[lngh-1].isdigit():
             if left - right > 0:
                 buffer = ')'
@@ -384,20 +387,19 @@ class RootWidget(BoxLayout):
                 buffer = '×('
             else:
                 buffer = ')'
+
         elif self.entry_status[lngh-1] == '(':
             buffer = '('
+
         else:
-            for oprtn in self.operations:
-                if self.entry_status[lngh-len(oprtn):lngh] == oprtn:
-                    buffer = '('
-                    break
+            buffer = '('
 
         self.entry_status += buffer
         self.updateEntry()
 
     def delete(self,instance):
         lngh = len(self.entry_status)
-        exeptions = ['-¹mod ',' mod ','НОД(', 'φ(','pow(']
+        exeptions = ['⁻¹mod ',' mod ','НОД(', 'φ(','pow(']
         deleted = False
         for e in exeptions:
             if self.entry_status[lngh-len(e):lngh] == e:

@@ -28,7 +28,7 @@ RootWidget:
   BoxLayout:
     orientation: 'vertical'
     size_hint: 1, 0.3
-    padding: [0,0,self.width//50,self.height//100]
+    padding: [0,0,self.width//50,self.height//50]
     spacing: self.height//10
     ScrollView:
       scroll_y: 0
@@ -73,10 +73,10 @@ RootWidget:
       text: 'φ(x)'
       on_press: root.add_number(self)
     Button:
-      text: 'x-¹'
+      text: 'x⁻¹'
       on_press: root.add_operation(self)
     Button:
-      text: '<-'
+      text: '⌫'
       on_press: root.delete(self)
 
     Button:
@@ -144,6 +144,9 @@ RootWidget:
       background_down: ''
       background_color: 1, 0.2, 0.1, .9
       on_press: root.result(self)
+
+<Label>:
+  font_name: 'data/ArialUni.ttf'
 
 <Button>:
   shorten: False
