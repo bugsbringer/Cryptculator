@@ -1,18 +1,39 @@
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.config import Config
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.lang.builder import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.properties import StringProperty
-from kivy.properties import NumericProperty
+from kivy.properties import *
 from kivy.uix.recycleview import ScrollView
 
 Config.set('graphics', 'resizable', '0')
 Config.set('graphics', 'width', '306')
 Config.set('graphics', 'height', '544')
 
+class CustomButton(Button):
+    __events__ = ('on_long_press', )
+    functions = ListProperty(['',''])
+    cur_func = NumericProperty(0)
+    funcs_colors = ListProperty([(.5,.15,.6,1),
+                                (.75, .16, .23, 1),
+                                (.34,.83,.56,1),])
+    long_press_time = NumericProperty(1)
+
+    def on_state(self, instance, value):
+        if value == 'down':
+            lpt = self.long_press_time
+            self._clockev = Clock.schedule_once(self._do_long_press, lpt)
+        else:
+            self._clockev.cancel()
+
+    def _do_long_press(self, dt):
+        self.dispatch('on_long_press')
+
+    def on_long_press(self, *largs):
+        pass
 
 class Row(BoxLayout):
     fs = NumericProperty()
@@ -103,6 +124,18 @@ class Crypt:
                         result.append(Crypt.NOD(a,b))
                 return result
 
+    def NOK(*args):
+        if len(args) > 1:
+            result = int(args[0]*args[1] / Crypt.NOD(args[0],args[1]))
+            if len(args) == 2:
+                    return result
+            else:
+                for i in range(2,len(args)):
+                    result = Crypt.NOK(result,args[i])
+                return result
+        else:
+            raise TypeError('NOK() takes exactly 2 or more arguments(%s given)'% len(args))
+
 class RootWidget(BoxLayout):
     def __init__(self):
         super().__init__()
@@ -123,7 +156,11 @@ class RootWidget(BoxLayout):
         if self.entry_status in emptys:
             self.entry_status = ''
 
+        functions = ['НОД','НОК','φ','F']
+
         buffer = instance.text
+        buffer = buffer.replace('F(N)','F')
+        buffer = buffer.replace('φ(x)','φ')
 
         lngh = len(self.entry_status)
         if instance.text == '.':
@@ -140,23 +177,17 @@ class RootWidget(BoxLayout):
                     if self.entry_status[lngh-1] != '.':
                         buffer = '0.'
 
-        elif instance.text == 'НОД':
+        elif buffer in functions:
             if self.entry_status != '':
                 if self.entry_status[lngh-1].isdigit():
-                    buffer = '×НОД('
+                    buffer = '×'+buffer+'('
                 else:
-                    buffer = 'НОД('
+                    buffer = ''+buffer+'('
             else:
-                buffer = 'НОД('
+                buffer = ''+buffer+'('
 
-        elif instance.text == 'φ(x)':
-            if self.entry_status != '':
-                if self.entry_status[lngh-1].isdigit():
-                    buffer = '×φ('
-                else:
-                    buffer = 'φ('
-            else:
-                buffer = 'φ('
+        if lngh > 0 and self.entry_status[lngh-1] == ')':
+            self.entry_status += '×'
 
         self.entry_status += buffer
         self.updateEntry()
@@ -298,9 +329,11 @@ class RootWidget(BoxLayout):
         result = result.replace('÷','/')
         result = result.replace('^','**')
         result = result.replace('НОД','Crypt.NOD')
+        result = result.replace('НОК','Crypt.NOK')
         result = result.replace('φ','Crypt.Euler_func')
+        result = result.replace('F','Crypt.factorization')
 
-        exeptions = ['Crypt.Euler_func','Crypt.NOD']
+        exeptions = ['Crypt.Euler_func','Crypt.NOD','Crypt.NOK','Crypt.factorization']
 
         if '(' in result and ')' in result:
             END = result.find(')')
@@ -319,7 +352,11 @@ class RootWidget(BoxLayout):
                 try:
                     if FUNC_BEFORE:
                         buffer = FUNC_BEFORE+'('+buffer+')'
+                        if FUNC_BEFORE == 'Crypt.factorization':
+                            return eval(buffer)
+
                     elif ',' in buffer:
+                        print('return Ошибка',buffer)
                         return 'Ошибка'
                     tmp = eval(buffer)
 
@@ -345,17 +382,30 @@ class RootWidget(BoxLayout):
         return result
 
     def result(self,instance):
+        def fact_handle(tmp):
+            dividers,degrees = tmp
+            result = ''
+            for i in range(len(degrees)):
+                result += str(dividers[i])+'^'+str(degrees[i])+','
+
+            return result[:len(result)-1]
+
         buffer = self.EntryParser()
-        try:
-            self.entry_status = eval(buffer)
-
-        except Exception as e:
-            self.entry_status = 'Ошибка'
+        if type(buffer) == tuple:
+            self.entry_status = fact_handle(buffer)
         else:
-            if Crypt.isint(self.entry_status):
-                self.entry_status = int(self.entry_status)
+            try:
+                self.entry_status = eval(buffer)
 
-            self.entry_status = str(self.entry_status)
+            except Exception as e:
+                self.entry_status = 'Ошибка'
+            else:
+
+                    if Crypt.isint(self.entry_status):
+                        self.entry_status = int(self.entry_status)
+
+                    self.entry_status = str(self.entry_status)
+
 
         if self.entry_status != self.entry.text:
             self.add_to_story()
@@ -396,9 +446,14 @@ class RootWidget(BoxLayout):
         self.entry_status += buffer
         self.updateEntry()
 
+    def switch_key(self,instance):
+        count = len(instance.functions)-instance.functions.count('')
+        instance.cur_func = ((instance.cur_func + 1) % count)
+        self.delete(None)
+
     def delete(self,instance):
         lngh = len(self.entry_status)
-        exeptions = ['-¹mod ',' mod ','НОД(', 'φ(','pow(']
+        exeptions = ['-¹mod ',' mod ','НОД(','НОК(','φ(','pow(','F(']
         deleted = False
         for e in exeptions:
             if self.entry_status[lngh-len(e):lngh] == e:
