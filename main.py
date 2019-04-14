@@ -8,7 +8,6 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.properties import *
 from kivy.uix.recycleview import ScrollView
-
 Config.set('graphics', 'resizable', '0')
 Config.set('graphics', 'width', '306')
 Config.set('graphics', 'height', '544')
@@ -141,15 +140,24 @@ class RootWidget(BoxLayout):
         super().__init__()
         self.entry_status = '0'
         self.operations = ['+','-','÷','×',',','^','mod ']
+        self.entry_height = 0
 
     def updateEntry(self):
+        if not self.entry_height:
+            self.entry_height = self.entry.height
         if self.entry_status == '':
             self.entry_status = '0'
         self.entry.text = self.entry_status
+        l = self.entry.texture_size[0]/(len(self.entry.text)*self.entry.texture_size[1])
+        if l < 0.7:
+            if self.entry.font_size > self.entry_height/1.35:
+                self.entry.font_size = self.entry.font_size//1.05
+        else:
+            self.entry.font_size = self.entry_height
 
     def add_to_story(self):
         self.story.add_widget(Row(lable_text=str(self.entry.text),
-                            fs=int(int(self.entry.font_size)//1.5) ))
+                            fs=int(int(self.entry_height)//1.6) ))
 
     def add_number(self,instance):
         emptys = ['0', 'Ошибка']
@@ -204,7 +212,9 @@ class RootWidget(BoxLayout):
 
 
         if buffer == ',':
-            if '(' not in self.entry_status:
+            left = self.entry_status.count('(')
+            right = self.entry_status.count(')')
+            if left-right == 0:
                 buffer = ''
 
         lngh = len(self.entry_status)
@@ -386,11 +396,18 @@ class RootWidget(BoxLayout):
             dividers,degrees = tmp
             result = ''
             for i in range(len(degrees)):
-                result += str(dividers[i])+'^'+str(degrees[i])+','
-
-            return result[:len(result)-1]
+                if degrees[i] > 1:
+                    result += str(dividers[i])+'^'+str(degrees[i])+', '
+                else:
+                    result += str(dividers[i])+', '
+            if result:
+                result = result[:len(result)-2]
+            else:
+                result = 'Простое число'
+            return result
 
         buffer = self.EntryParser()
+
         if type(buffer) == tuple:
             self.entry_status = fact_handle(buffer)
         else:

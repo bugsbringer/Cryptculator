@@ -28,7 +28,7 @@ RootWidget:
   BoxLayout:
     orientation: 'vertical'
     size_hint: 1, 0.3
-    padding: [0,0,self.width//50,self.height//50]
+    padding: [self.width//50,self.height//50]
     spacing: self.height//10
     ScrollView:
       scroll_y: 0
@@ -43,13 +43,13 @@ RootWidget:
       id: entry
       text: '0'
       size_hint_y: 0.3
+      text_size: self.width, self.height
       font_size: self.height
       max_lines:1
       shorten: True
       shorten_from: 'left'
       halign: 'right'
       valign: 'bottom'
-      text_size: self.width, self.height
 
 
   GridLayout:
