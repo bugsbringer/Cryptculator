@@ -148,6 +148,7 @@ class RootWidget(BoxLayout):
         if self.entry_status == '':
             self.entry_status = '0'
         self.entry.text = self.entry_status
+
         l = self.entry.texture_size[0]/(len(self.entry.text)*self.entry.texture_size[1])
         if l < 0.7:
             if self.entry.font_size > self.entry_height/1.35:
@@ -323,8 +324,8 @@ class RootWidget(BoxLayout):
 
             return puck(buffer)
 
-        if self.entry_status[len(self.entry_status)-1] == '(':
-            return self.entry_status
+        while self.entry_status[len(self.entry_status)-1] == '(':
+            self.entry_status = self.entry_status[:len(self.entry_status)-2]
 
         left = self.entry_status.count('(')
         right = self.entry_status.count(')')
@@ -366,7 +367,6 @@ class RootWidget(BoxLayout):
                             return eval(buffer)
 
                     elif ',' in buffer:
-                        print('return Ошибка',buffer)
                         return 'Ошибка'
                     tmp = eval(buffer)
 
