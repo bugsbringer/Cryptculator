@@ -145,7 +145,7 @@ class RootWidget(BoxLayout):
     def updateEntry(self):
         if not self.entry_height:
             self.entry_height = self.entry.height
-        if self.entry_status == '':
+        if self.entry_status == '' or self.entry_status == '()':
             self.entry_status = '0'
         self.entry.text = self.entry_status
 
@@ -324,7 +324,7 @@ class RootWidget(BoxLayout):
 
             return puck(buffer)
 
-        while self.entry_status[len(self.entry_status)-1] == '(':
+        while len(self.entry_status)>2 and self.entry_status[len(self.entry_status)-1] == '(':
             self.entry_status = self.entry_status[:len(self.entry_status)-2]
 
         left = self.entry_status.count('(')
