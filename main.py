@@ -1,3 +1,4 @@
+__version__ = '0.2.6'
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config
@@ -8,9 +9,58 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.properties import *
 from kivy.uix.recycleview import ScrollView
+import wget, os, threading
+from plyer import storagepath
+
 Config.set('graphics', 'resizable', '0')
 Config.set('graphics', 'width', '306')
 Config.set('graphics', 'height', '544')
+
+def check_for_update():
+    s = ("https://github.com/bugsbringer/Cryptculator-actual-APK")
+    file_lines = open(wget.download(s)).readlines()
+    os.remove('Cryptculator-actual-APK')
+    Content = False
+    for line in file_lines:
+        if Content:
+            data = line
+            break
+        if '<td class="content">' in line:
+            Content = True
+
+    STRT_index = data.find('href=') + len('href=') + 1
+    data = data[STRT_index:]
+    END_index = data.find('>') - 1
+    href = data[:END_index].replace('blob','raw')
+    file_url = "https://github.com"+href
+    print('\nfile url:',file_url)
+    STRT_index = href.find('cryptculatorapp-') + len('cryptculatorapp-')
+    new_version = href[STRT_index:]
+    new_version = new_version[:new_version.find('-')]
+    print('\nversion on git:',new_version)
+    return new_version,file_url
+
+class Update(BoxLayout):
+    app_version = StringProperty(__version__)
+    new_version = StringProperty('')
+    file_url = StringProperty('')
+
+    def download_update(self,instance):
+        instance.disabled = True
+        download_dir = storagepath.get_downloads_dir()
+        def tmp():
+            instance.text = 'Загрузка'
+            filename = wget.download(self.file_url)
+            os.rename(filename, download_dir+'/'+filename)
+            instance.text = 'Готово'
+        filename = self.file_url[self.file_url.rfind('/')+1:]
+        if os.path.isfile(download_dir+'/'+filename):
+            instance.text = 'Уже есть!'
+        else:
+            threading.Thread(target=tmp).start()
+        self.myV.text = 'Папка: '+download_dir[:len(download_dir)//3]
+        self.gitV.height = self.gitV.height//5
+        self.gitV.text = download_dir[len(download_dir)//3:]
 
 class CustomButton(Button):
     __events__ = ('on_long_press', )
@@ -141,6 +191,9 @@ class RootWidget(BoxLayout):
         self.entry_status = '0'
         self.operations = ['+','-','÷','×',',','^','mod ']
         self.entry_height = 0
+        git_version,git_file_url = check_for_update()
+        if git_version != __version__:
+            self.add_widget(Update(new_version=git_version,file_url=git_file_url))
 
     def updateEntry(self):
         if not self.entry_height:

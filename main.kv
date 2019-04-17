@@ -15,6 +15,31 @@
     halign: 'right'
     valign: 'center'
 
+<UpdLable@Label>:
+
+<Update>:
+  size_hint: 1, 0.065
+  padding: self.width//50*9//16,self.height//50
+  status_bar:status_bar
+  myV:myV
+  gitV:gitV
+
+  BoxLayout:
+    id: status_bar
+    orientation: 'vertical'
+    UpdLable:
+      id: myV
+      text: 'Your version: ' + root.app_version
+    UpdLable:
+      id: gitV
+      text: 'GIT version: ' + root.new_version
+  Button:
+    text: 'Скачать'
+    on_press: root.download_update(self)
+    size_hint: 0.7 , 0.9
+    font_size: self.height//1.8
+    background_color: .34,.83,.56,1
+
 RootWidget:
   canvas.before:
     Color:
@@ -25,9 +50,10 @@ RootWidget:
   orientation: 'vertical'
   story:story
   entry: entry
+
   BoxLayout:
     orientation: 'vertical'
-    size_hint: 1, 0.3
+    size_hint: 1, 0.28
     padding: [self.width//50,self.height//50]
     spacing: self.height//10
     ScrollView:
@@ -42,7 +68,7 @@ RootWidget:
     Label:
       id: entry
       text: '0'
-      size_hint_y: 0.3
+      size_hint_y: 0.35
       text_size: self.width, self.height
       font_size: self.height
       max_lines:1
@@ -50,7 +76,6 @@ RootWidget:
       shorten_from: 'left'
       halign: 'right'
       valign: 'bottom'
-
 
   GridLayout:
     canvas.before:
@@ -60,7 +85,7 @@ RootWidget:
         pos: self.pos
         size: self.size
     cols: 5
-    size_hint: 1, 0.7
+    size_hint: 1, 0.655
     padding: 3
     spacing: 3
     Button:
@@ -157,11 +182,13 @@ RootWidget:
       pos: self.pos
       size: (self.size[0],self.size[1]//10)
 
+<UpdLable>:
+  text_size: self.width, self.height
+  font_size: self.height
+  halign: 'left'
+  valign: 'center'
+
 <Button>:
-  shorten: False
   background_normal: ''
   background_color: 1, 1, 1, .05
-  text_size: self.width, self.height
   font_size: self.height//3
-  halign: 'center'
-  valign: 'center'
