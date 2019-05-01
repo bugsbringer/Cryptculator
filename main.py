@@ -1,70 +1,53 @@
-__version__ = '0.2.6'
-from kivy.app import App
+__version__ = '0.3.0'
+from kivy.base import runTouchApp
 from kivy.clock import Clock
-from kivy.config import Config
+from kivy.uix.textinput import TextInput
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.lang.builder import Builder
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.gridlayout import GridLayout
-from kivy.properties import *
 from kivy.uix.recycleview import ScrollView
-import wget, os, threading
-from plyer import storagepath
+from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.dropdown import DropDown
+from kivy.properties import *
+#from kivy.config import Config
+#from kivy.core.window import Window
 
-Config.set('graphics', 'resizable', '0')
-Config.set('graphics', 'width', '306')
-Config.set('graphics', 'height', '544')
+#Config.set('graphics', 'resizable', '0')
+#Window.size = (306, 544)
 
-def check_for_update():
-    s = ("https://github.com/bugsbringer/Cryptculator-actual-APK")
-    file_lines = open(wget.download(s)).readlines()
-    os.remove('Cryptculator-actual-APK')
-    Content = False
-    for line in file_lines:
-        if Content:
-            data = line
-            break
-        if '<td class="content">' in line:
-            Content = True
+X = 0
+Y = 1
 
-    STRT_index = data.find('href=') + len('href=') + 1
-    data = data[STRT_index:]
-    END_index = data.find('>') - 1
-    href = data[:END_index].replace('blob','raw')
-    file_url = "https://github.com"+href
-    print('\nfile url:',file_url)
-    STRT_index = href.find('cryptculatorapp-') + len('cryptculatorapp-')
-    new_version = href[STRT_index:]
-    new_version = new_version[:new_version.find('-')]
-    print('\nversion on git:',new_version)
-    return new_version,file_url
-
-class Update(BoxLayout):
-    app_version = StringProperty(__version__)
-    new_version = StringProperty('')
-    file_url = StringProperty('')
-
-    def download_update(self,instance):
-        instance.disabled = True
-        download_dir = storagepath.get_downloads_dir()
-        def tmp():
-            instance.text = 'Загрузка'
-            filename = wget.download(self.file_url)
-            os.rename(filename, download_dir+'/'+filename)
-            instance.text = 'Готово'
-        filename = self.file_url[self.file_url.rfind('/')+1:]
-        if os.path.isfile(download_dir+'/'+filename):
-            instance.text = 'Уже есть!'
+class CustomTextInput(TextInput):
+    def insert_text(self, substring, from_undo=False):
+        pat = '0123456789(),-'
+        if substring in pat:
+            s = substring
         else:
-            threading.Thread(target=tmp).start()
-        self.myV.text = 'Папка: '+download_dir[:len(download_dir)//3]
-        self.gitV.height = self.gitV.height//5
-        self.gitV.text = download_dir[len(download_dir)//3:]
+            s = ''
+
+        if self.text == 'p(a,b)':
+            self.text = ''
+        return super(CustomTextInput, self).insert_text(s, from_undo=from_undo)
+
+class CustomToggleButton(ToggleButton):
+    can_color = ListProperty([1, 0.2, 0.1, 0])
+
+    def on_state(self, instance, value):
+        if value == 'down':
+            self.can_color[3] = 1
+            self.color = self.can_color
+        else:
+            self.can_color[3] = 0
+            self.color = 1,1,1,1
 
 class CustomButton(Button):
     __events__ = ('on_long_press', )
-    functions = ListProperty(['',''])
+    functions = ListProperty(['','',''])
     cur_func = NumericProperty(0)
     funcs_colors = ListProperty([(.5,.15,.6,1),
                                 (.75, .16, .23, 1),
@@ -88,7 +71,7 @@ class Row(BoxLayout):
     fs = NumericProperty()
     lable_text = StringProperty("")
 
-class Crypt:
+class Crypto:
     def isnum(n):
         try:
             n = float(n)
@@ -99,7 +82,7 @@ class Crypt:
 
     def isint(n):
         try:
-            int(n)
+            n = float(n)
         except Exception as e:
             return False
         else:
@@ -141,7 +124,7 @@ class Crypt:
     def Euler_func(n):
         n = int(n)
         if n > 1:
-            dividers = Crypt.factorization(n)[0]
+            dividers = Crypto.factorization(n)[0]
             if not dividers:
                 return n - 1
             else:
@@ -153,7 +136,7 @@ class Crypt:
         else: return None
 
     def InvMod(e,mod):
-        return pow(e,Crypt.Euler_func(mod)-1,mod)
+        return pow(e,Crypto.Euler_func(mod)-1,mod)
 
     def NOD(*args):
         """Попарная проверка"""
@@ -170,30 +153,270 @@ class Crypt:
                     a = args[i]
                     for j in range(i+1,len(args)):
                         b = args[j]
-                        result.append(Crypt.NOD(a,b))
+                        result.append(Crypto.NOD(a,b))
                 return result
 
     def NOK(*args):
         if len(args) > 1:
-            result = int(args[0]*args[1] / Crypt.NOD(args[0],args[1]))
+            result = abs(args[0]*args[1]) // Crypto.NOD(args[0],args[1])
             if len(args) == 2:
                     return result
             else:
                 for i in range(2,len(args)):
-                    result = Crypt.NOK(result,args[i])
+                    result = Crypto.NOK(result,args[i])
                 return result
         else:
             raise TypeError('NOK() takes exactly 2 or more arguments(%s given)'% len(args))
 
-class RootWidget(BoxLayout):
-    def __init__(self):
-        super().__init__()
-        self.entry_status = '0'
-        self.operations = ['+','-','÷','×',',','^','mod ']
-        self.entry_height = 0
-        git_version,git_file_url = check_for_update()
-        if git_version != __version__:
-            self.add_widget(Update(new_version=git_version,file_url=git_file_url))
+class EllipticCurve:
+    def __init__(self, ab, p):
+        if type(ab) != tuple:
+            raise TypeError('first argument must be a tuple.')
+        if p == 2 or p == 3:
+            raise ValueError('p = 2,3 not yet supported.')
+        elif p <= 1:
+            raise ValueError('p must be greater than 1.')
+        self.a, self.b = ab
+        self.p = p
+
+    def sum(self, P, Q, output=False):
+        """P(x1,y1) + Q(x2,y2) = R(x3,y3)"""
+        if type(P) != tuple:
+            raise TypeError('P must be a tuple.')
+        elif type(Q) != tuple:
+            raise TypeError('Q must be a tuple.')
+
+        lam = ((Q[Y] - P[Y]) * Crypto.InvMod(Q[X]-P[X],self.p)) % self.p
+        newX = (lam**2 - P[X] - Q[X]) % self.p
+        newY = (lam*(P[X] - newX) - P[Y]) % self.p
+        result = (newX,newY)
+
+        if output:
+            print('Lambda = (%s-%s)*(%s-%s)^-1(mod %s) = %s' % (Q[Y],P[Y],Q[X],P[X],self.p,lam))
+            print('Xr = %s^2 - %s - %s(mod %s) = %s'%(lam,P[X],Q[X],self.p,newX))
+            print('Yr = %s*(%s - %s) - %s(mod %s) = %s'%(lam,P[X],newX,P[Y],self.p,newY))
+            print('P%s + Q%s = R%s\n' % (P,Q,result))
+
+        return result
+
+    def sub(self, P, Q, output=False):
+        """P(x1,y1) - Q(x2,y2) = R(x3,y3)"""
+        return self.sum(P, self.invert(Q), output)
+
+    def double(self, P, output=False):
+        """2*P(x1,y1) = R(x3,y3)"""
+        if type(P) != tuple:
+            raise TypeError('P must be a tuple.')
+
+        lam = ((3*(P[X]**2) + self.a) * Crypto.InvMod(2*P[Y],self.p)) % self.p
+        newX = (lam**2 - 2*P[X]) % self.p
+        newY = (lam*(P[X] - newX) - P[Y]) % self.p
+        result = (newX,newY)
+
+        if output:
+            print('Lambda = (3*%s^2) + %s) * (2*%s)^-1(mod %s) = %s' % (P[X],self.a,P[Y],self.p,lam))
+            print('Xr = %s^2 - 2*%s(mod %s) = %s'%(lam,P[X],self.p,newX))
+            print('Yr = %s*(%s - %s) - %s(mod %s) = %s'%(lam,P[X],newX,P[Y],self.p,newY))
+            print('2P%s = R%s\n' % (P,result))
+
+        return result
+
+    def mult(self, P, n, output=False):
+        """n*P(x1,y1) = R(x3,y3)"""
+        if type(P) != tuple:
+            raise TypeError('P must be a tuple.')
+        elif type(n) != int:
+            raise TypeError('n must be integer.')
+        elif n < 1:
+            raise ValueError('n must be greater than 0.')
+        elif n == 1:
+            return P
+        elif n == 2:
+            return self.double(P)
+
+
+        result_list = []
+        buffer_n = n
+        while n > 1:
+            buffer = P
+            power = 1
+
+            while True:
+                buffer = self.double(buffer, output=False)
+                if pow(2, power + 1) > n:
+                    break
+                else:
+                    power += 1
+
+            n -= 2**power
+            result_list.append( (str(2**power) + 'P', buffer) )
+
+        if n == 1:
+            result_list.append(('P', P))
+
+        result = result_list[0][1]
+        for i in range(1,len(result_list)):
+            result = self.sum(result, result_list[i][1], output=False)
+
+        if output:
+            print('%s%s = %s%s' % (buffer_n, P, result_list[0][0],result_list[0][1]), end='')
+            for i in range(1, len(result_list)):
+                print(' + %s%s' % (result_list[i][0], result_list[i][1]), end='')
+            print(' =', result,'\n')
+
+        return result
+
+    def invert(self, P):
+        """P(x1,y1) = P(x1,-y1)"""
+        if type(P) != tuple:
+            raise TypeError('P must be a tuple.')
+        return (P[X],-P[Y])
+
+    def __str__(self):
+        if self.a > 0:
+            a = ' + '+str(self.a)+'x'
+        elif self.a < 0:
+            a = ' - '+str(abs(self.a))+'x'
+        else:
+            a = ''
+
+        if self.b > 0:
+            b = ' + '+str(self.b)
+        elif self.b < 0:
+            b = ' - '+str(abs(self.b))
+        else:
+            b = ''
+
+        return "E"+str(self.p)+str((self.a,self.b))+": y^2 = x^3"+a+b+" (mod"+str(self.p)+")\n"
+
+class CustomDropDown(DropDown):
+    data = StringProperty("")
+    acts = ['+','-','×']
+    pass
+
+class Elliptic(BoxLayout):
+
+    def parse_curve_data(self):
+        def junk(string):
+                        list(string)
+                        numb = ''
+                        symbl = ''
+                        new = []
+                        for i in range(len(string)):
+                            try: int(numb+string[i])
+                            except ValueError:
+                                if numb:
+                                    new.append(numb)
+                                    numb = ''
+                                symbl += string[i]
+                                if i == len(string)-1:
+                                    new.append(symbl)
+                            else:
+                                if symbl:
+                                    new.append(symbl)
+                                    symbl = ''
+                                numb += string[i]
+                                if i == len(string)-1:
+                                    new.append(numb)
+                        i = 0
+                        while i < len(new):
+                            if new[i] == '.':
+                                if new[i-1].isdigit():
+                                    if new[i+1] and new[i+1].isdigit():
+                                        new[i] += new.pop(i+1)
+                                        new[i-1] += new.pop(i)
+                                        i -= 1
+                                    else:
+                                        new.pop(i)
+                                        i -= 1
+                            i += 1
+                        i = 0
+                        while i < len(new):
+                            l = len(new[i])
+                            if new[i][l-1:l] == '-':
+                                if i == 0:
+                                    new[i] += new.pop(i+1)
+                                elif new[i][l-2] == '(':
+                                    new[i] = new[i][:l-1]
+                                    new[i+1] = '-'+new[i+1]
+                            i += 1
+
+                        return new
+        data = junk(self.curve_data.text)
+        if len(data) != 6 and len(data) != 5:
+            return False
+        for i in range(0,len(data),2):
+            if not Crypto.isint(data[i]):
+                return False
+        p = int(data[0])
+        if p < 4:
+            return False
+        a = int(data[2])
+        b = int(data[4])
+        return (a,b),p
+
+    def result(self):
+        actions = ['+','-','×']
+        self.result_input.text = ''
+
+        if type(self.parse_curve_data()) != tuple:
+            self.result_input.text = 'Ошибка'
+            return
+
+        ab,p = self.parse_curve_data()
+
+        try:
+            E = EllipticCurve(ab,p)
+            in1 = eval(self.input1.text)
+            in2 = eval(self.input2.text)
+        except Exception as e:
+            self.result_input.text = 'Ошибка'
+            return
+
+        action = self.action.text
+
+        if type(in1) != tuple and type(in2) != tuple:
+            self.result_input.text = 'Ошибка'
+            return
+
+        elif action == actions[2]:
+            if type(in1) == tuple and type(in2) == tuple:
+                self.result_input.text = 'Ошибка'
+                return
+
+            elif type(in1) == tuple:
+                P = in1
+                n = in2
+
+            else:
+                n = in1
+                P = in2
+
+            if n < 1:
+                self.result_input.text = 'Ошибка'
+                return
+
+            result = E.mult(P,n)
+
+        elif action == actions[0] or action == actions[1]:
+            if type(in1) == int or type(in2) == int:
+                self.result_input.text = 'Ошибка'
+                return
+            P = in1
+            Q = in2
+            if action == actions[0]:
+                result = E.sum(P,Q)
+            else:
+                result = E.sub(P,Q)
+        self.result_input.text = str(result)
+
+
+
+
+class Usual(BoxLayout):
+    entry_status = '0'
+    operations = ['+','-','÷','×',',','^','mod ']
+    entry_height = 0
 
     def updateEntry(self):
         if not self.entry_height:
@@ -367,7 +590,7 @@ class RootWidget(BoxLayout):
                         E = int(buffer[i-1])
                         MOD = int(buffer[i+1])
                     except Exception as e: return 'Ошибка'
-                    else: RESULT = Crypt.InvMod(E,MOD)
+                    else: RESULT = Crypto.InvMod(E,MOD)
                     buffer[i-1] = str(RESULT)
                     for j in range(i+1,i-1,-1):
                         buffer.pop(j)
@@ -392,12 +615,12 @@ class RootWidget(BoxLayout):
         result = result.replace('×','*')
         result = result.replace('÷','/')
         result = result.replace('^','**')
-        result = result.replace('НОД','Crypt.NOD')
-        result = result.replace('НОК','Crypt.NOK')
-        result = result.replace('φ','Crypt.Euler_func')
-        result = result.replace('F','Crypt.factorization')
+        result = result.replace('НОД','Crypto.NOD')
+        result = result.replace('НОК','Crypto.NOK')
+        result = result.replace('φ','Crypto.Euler_func')
+        result = result.replace('F','Crypto.factorization')
 
-        exeptions = ['Crypt.Euler_func','Crypt.NOD','Crypt.NOK','Crypt.factorization']
+        exeptions = ['Crypto.Euler_func','Crypto.NOD','Crypto.NOK','Crypto.factorization']
 
         if '(' in result and ')' in result:
             END = result.find(')')
@@ -416,14 +639,14 @@ class RootWidget(BoxLayout):
                 try:
                     if FUNC_BEFORE:
                         buffer = FUNC_BEFORE+'('+buffer+')'
-                        if FUNC_BEFORE == 'Crypt.factorization':
+                        if FUNC_BEFORE == 'Crypto.factorization':
                             return eval(buffer)
 
                     elif ',' in buffer:
                         return 'Ошибка'
                     tmp = eval(buffer)
 
-                    if Crypt.isint(tmp):
+                    if Crypto.isint(tmp):
                         tmp = int(tmp)
                     buffer = str(tmp)
 
@@ -471,7 +694,7 @@ class RootWidget(BoxLayout):
                 self.entry_status = 'Ошибка'
             else:
 
-                    if Crypt.isint(self.entry_status):
+                    if Crypto.isint(self.entry_status):
                         self.entry_status = int(self.entry_status)
 
                     self.entry_status = str(self.entry_status)
@@ -543,10 +766,16 @@ class RootWidget(BoxLayout):
             self.entry_status = '0'
             self.updateEntry()
 
-class MyApp(App):
-    def build(self):
-        root = Builder.load_string(open("main.kv", encoding='utf-8').read())
-        return root
+class RootWidget(BoxLayout):
+    def __init__(self):
+        super().__init__()
+        self.screens = ['Обычный','Эллиптический']
+
+    def switch_screen(self,instance):
+        trans = {   self.screens[0]:'right',
+                    self.screens[1]:'left'  }
+        self.manager.transition.direction = trans[instance.text]
+        self.manager.current = instance.text
 
 if __name__ == '__main__':
-    MyApp().run()
+    runTouchApp(Builder.load_string(open("main.kv", encoding='utf-8').read()))

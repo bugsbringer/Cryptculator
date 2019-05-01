@@ -15,32 +15,122 @@
     halign: 'right'
     valign: 'center'
 
-<UpdLable@Label>:
+<CustomDropDown>:
+  Button:
+    text: root.acts[0]
+    size_hint_y: None
+    height: self.height
+    background_color: .14,.14,.17, 1
+    font_size: self.height
+    on_release:
+      root.data = self.text
+      root.select(self.text)
+  Button:
+    text: root.acts[1]
+    size_hint_y: None
+    height: self.height
+    background_color: .14,.14,.17, 1
+    font_size: self.height
+    on_release:
+      root.data = self.text
+      root.select(self.text)
+  Button:
+    text: root.acts[2]
+    size_hint_y: None
+    height: self.height
+    background_color: .14,.14,.17, 1
+    font_size: self.height
+    on_release:
+      root.data = self.text
+      root.select(self.text)
 
-<Update>:
-  size_hint: 1, 0.065
-  padding: self.width//50*9//16,self.height//50
-  status_bar:status_bar
-  myV:myV
-  gitV:gitV
+<Elliptic>:
+  orientation: 'vertical'
+  action: action
+  dropdown: dropdown
+  input1: input1
+  input2: input2
+  result_input: result_input
+  curve_data:curve_data
+
+  CustomDropDown:
+    id: dropdown
+    on_select: setattr(root.action, 'text', self.data)
 
   BoxLayout:
-    id: status_bar
-    orientation: 'vertical'
-    UpdLable:
-      id: myV
-      text: 'Your version: ' + root.app_version
-    UpdLable:
-      id: gitV
-      text: 'GIT version: ' + root.new_version
-  Button:
-    text: 'Скачать'
-    on_press: root.download_update(self)
-    size_hint: 0.7 , 0.9
-    font_size: self.height//1.8
-    background_color: .34,.83,.56,1
+    size_hint_y: .05
 
-RootWidget:
+  AnchorLayout:
+    size_hint_y: .1
+    anchor_x: 'center'
+    anchor_y: 'center'
+    BoxLayout:
+      size_hint_x: .8
+      spacing: self.width//200
+      padding: [self.width//200,self.height//15]
+      Label:
+        size_hint_x: .1
+        text:'E'
+        text_size: self.width, self.height
+        font_size: self.height
+        halign: 'right'
+        valign: 'bottom'
+      CustomTextInput:
+        id:curve_data
+        text: 'p(a,b)'
+        multiline: False
+        font_size: self.height//1.75
+
+  BoxLayout:
+    size_hint_y: .1
+
+  AnchorLayout:
+    size_hint_y: .3
+    anchor_x: 'center'
+    anchor_y: 'center'
+    BoxLayout:
+      size_hint_x: .9
+      orientation: 'vertical'
+      spacing: self.height//50
+      BoxLayout:
+        BoxLayout:
+          orientation: 'vertical'
+          CustomTextInput:
+            id: input1
+            multiline: False
+            text_size: self.width, self.height
+            font_size: self.height//2
+          CustomTextInput:
+            id: input2
+            multiline: False
+            text_size: self.width, self.height
+            font_size: self.height//2
+          CustomTextInput:
+            id: result_input
+            text_validate_unfocus: False
+            multiline: False
+            text_size: self.width, self.height
+            font_size: self.height//2
+        BoxLayout:
+          size_hint_x: .3
+          orientation: 'vertical'
+          Button:
+            text: '+'
+            id: action
+            height: input1.height
+            font_size: self.height//2
+            on_release:
+              setattr(root.dropdown,'height',input1.height)
+              root.dropdown.open(self)
+          Button:
+            text: '='
+            on_press: root.result()
+            background_color: 1, 0.2, 0.1, .9
+
+  BoxLayout:
+    size_hint_y: .45
+
+<Usual>:
   canvas.before:
     Color:
       rgba: .1,.1,.13, 1
@@ -172,9 +262,42 @@ RootWidget:
       background_color: 1, 0.2, 0.1, .9
       on_press: root.result(self)
 
+RootWidget:
+  manager:manager
+  elip:elip
+  canvas.before:
+    Color:
+      rgba: .1,.1,.13, 1
+    Rectangle:
+      pos: self.pos
+      size: self.size
+  orientation: 'vertical'
+  BoxLayout:
+    size_hint:1,0.07
+    spacing: 10
+    padding: [self.width//30,self.height//20,self.width//30,0]
+    CustomToggleButton:
+      text: root.screens[0]
+      state:'down'
+      on_press: root.switch_screen(self)
+    CustomToggleButton:
+      text: root.screens[1]
+      on_press:
+        root.elip.dropdown.dismiss()
+        root.switch_screen(self)
+  ScreenManager:
+    id: manager
+    Screen:
+      name: root.screens[0]
+      Usual:
+    Screen:
+      name: root.screens[1]
+      Elliptic:
+        id:elip
+
 <CustomButton>:
   text: self.functions[self.cur_func]
-  long_press_time: 0.5
+  long_press_time: 0.25
   canvas.before:
     Color:
       rgba: root.funcs_colors[root.cur_func]
@@ -182,13 +305,21 @@ RootWidget:
       pos: self.pos
       size: (self.size[0],self.size[1]//10)
 
-<UpdLable>:
-  text_size: self.width, self.height
-  font_size: self.height
-  halign: 'left'
-  valign: 'center'
-
 <Button>:
   background_normal: ''
   background_color: 1, 1, 1, .05
   font_size: self.height//3
+
+<CustomToggleButton>:
+  group:'calculators'
+  allow_no_selection:False
+  font_size: self.height//2.2
+  background_normal: ''
+  background_down: ''
+  background_color: .1,.1,.13, 0#1, 1, 1,.1
+  canvas.after:
+    Color:
+      rgba: root.can_color
+    Rectangle:
+      pos: self.pos
+      size: (self.size[0],self.size[1]//15)
