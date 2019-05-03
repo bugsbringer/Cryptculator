@@ -1,4 +1,4 @@
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 from kivy.base import runTouchApp
 from kivy.clock import Clock
 from kivy.uix.textinput import TextInput
@@ -13,26 +13,37 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.dropdown import DropDown
 from kivy.properties import *
-#from kivy.config import Config
-#from kivy.core.window import Window
-
-#Config.set('graphics', 'resizable', '0')
-#Window.size = (306, 544)
+try:
+    import android
+except ImportError:
+    from kivy.config import Config
+    from kivy.core.window import Window
+    Config.set('graphics', 'resizable', '0')
+    Window.size = (306, 544)
 
 X = 0
 Y = 1
+O = (0,0)
 
 class CustomTextInput(TextInput):
+    use_bubble = True
+
+    def on_focus(self, instance, value):
+        if self.text == 'p(a,b)':
+            self.text = ''
+
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
         if substring in pat:
             s = substring
         else:
             s = ''
-
-        if self.text == 'p(a,b)':
-            self.text = ''
         return super(CustomTextInput, self).insert_text(s, from_undo=from_undo)
+
+class CustomDropDown(DropDown):
+    data = StringProperty("")
+    acts = ['+','-','×']
+    pass
 
 class CustomToggleButton(ToggleButton):
     can_color = ListProperty([1, 0.2, 0.1, 0])
@@ -82,7 +93,7 @@ class Crypto:
 
     def isint(n):
         try:
-            n = float(n)
+            int(n)
         except Exception as e:
             return False
         else:
@@ -171,106 +182,131 @@ class Crypto:
 class EllipticCurve:
     def __init__(self, ab, p):
         if type(ab) != tuple:
-            raise TypeError('first argument must be a tuple.')
-        if p == 2 or p == 3:
-            raise ValueError('p = 2,3 not yet supported.')
-        elif p <= 1:
-            raise ValueError('p must be greater than 1.')
+            raise TypeError('1st argument must be a tuple')
+        if type(p) != int:
+            raise TypeError('2nd argument must be a integer')
+        if p <= 1:
+            raise ValueError('2nd argument must be greater than 1')
         self.a, self.b = ab
         self.p = p
 
-    def sum(self, P, Q, output=False):
-        """P(x1,y1) + Q(x2,y2) = R(x3,y3)"""
+    def sum(self, P, Q):
+        """(x1,y1) + (x2,y2) = (x3,y3)"""
         if type(P) != tuple:
-            raise TypeError('P must be a tuple.')
+            raise TypeError('1st argument must be a tuple')
         elif type(Q) != tuple:
-            raise TypeError('Q must be a tuple.')
+            raise TypeError('2nd argument must be a tuple')
 
-        lam = ((Q[Y] - P[Y]) * Crypto.InvMod(Q[X]-P[X],self.p)) % self.p
-        newX = (lam**2 - P[X] - Q[X]) % self.p
-        newY = (lam*(P[X] - newX) - P[Y]) % self.p
-        result = (newX,newY)
+        if P == O:
+            return Q
+        elif Q == O:
+            return P
 
-        if output:
-            print('Lambda = (%s-%s)*(%s-%s)^-1(mod %s) = %s' % (Q[Y],P[Y],Q[X],P[X],self.p,lam))
-            print('Xr = %s^2 - %s - %s(mod %s) = %s'%(lam,P[X],Q[X],self.p,newX))
-            print('Yr = %s*(%s - %s) - %s(mod %s) = %s'%(lam,P[X],newX,P[Y],self.p,newY))
-            print('P%s + Q%s = R%s\n' % (P,Q,result))
+        if P == self.invert(Q):
+            return O
+        elif P == Q:
+            return self.double(P)
 
-        return result
+        new = [0,0]
+        if self.p == 2:
+            lam = ((Q[Y] + P[Y]) * Crypto.InvMod(Q[X] + P[X], self.p)) % self.p
+            new[X] = lam**2 + P[X] + Q[X]
+            new[Y] = lam * (P[X] + new[X]) + P[Y] + self.a
+        else:
+            lam = ((Q[Y] - P[Y]) * Crypto.InvMod(Q[X] - P[X], self.p)) % self.p
+            if self.p == 3:
+                new[X] = lam**2 - P[X] - Q[X] - self.a
+            else:
+                new[X] = lam**2 - P[X] - Q[X]
+            new[Y] = lam * (P[X] - new[X]) - P[Y]
 
-    def sub(self, P, Q, output=False):
-        """P(x1,y1) - Q(x2,y2) = R(x3,y3)"""
-        return self.sum(P, self.invert(Q), output)
+        new[X] = new[X] % self.p
+        new[Y] = new[Y] % self.p
+        return tuple(new)
 
-    def double(self, P, output=False):
-        """2*P(x1,y1) = R(x3,y3)"""
+    def sub(self, P, Q):
+        """(x1,y1) - (x2,y2) = (x3,y3)"""
+        return self.sum(P, self.invert(Q))
+
+    def double(self, P):
+        """2(x1,y1) = (x3,y3)"""
         if type(P) != tuple:
-            raise TypeError('P must be a tuple.')
+            raise TypeError('1st argument must be a tuple')
+        if P == O:
+            return O
 
-        lam = ((3*(P[X]**2) + self.a) * Crypto.InvMod(2*P[Y],self.p)) % self.p
-        newX = (lam**2 - 2*P[X]) % self.p
-        newY = (lam*(P[X] - newX) - P[Y]) % self.p
-        result = (newX,newY)
+        new = [0,0]
+        if self.p == 2:
+            new[X] = ((P[X]**4 + self.b**2) * Crypto.InvMod(self.a**2,self.p)) % self.p
+            lam = (P[X]**2 + self.b) * Crypto.InvMod(self.a,self.p)
+            new[Y] = lam * (P[X] + new[X]) + P[Y] + self.a
 
-        if output:
-            print('Lambda = (3*%s^2) + %s) * (2*%s)^-1(mod %s) = %s' % (P[X],self.a,P[Y],self.p,lam))
-            print('Xr = %s^2 - 2*%s(mod %s) = %s'%(lam,P[X],self.p,newX))
-            print('Yr = %s*(%s - %s) - %s(mod %s) = %s'%(lam,P[X],newX,P[Y],self.p,newY))
-            print('2P%s = R%s\n' % (P,result))
+        if self.p == 3:
+            lam = ((self.a*P[X]**2 - self.b) * Crypto.InvMod(P[Y],self.p)) % self.p
+            new[X] = lam**2 - self.a + P[X]
+            new[Y] = lam*(P[X] - new[X]) - P[Y]
 
-        return result
+        else:
+            lam = ((3*P[X]**2 + self.a) * Crypto.InvMod(2*P[Y],self.p)) % self.p
+            new[X] = lam**2 - 2*P[X]
+            new[Y] = lam*(P[X] - new[X]) - P[Y]
 
-    def mult(self, P, n, output=False):
+        new[X] = new[X] % self.p
+        new[Y] = new[Y] % self.p
+
+        return tuple(new)
+
+    def mult(self, P, n):
         """n*P(x1,y1) = R(x3,y3)"""
         if type(P) != tuple:
-            raise TypeError('P must be a tuple.')
-        elif type(n) != int:
-            raise TypeError('n must be integer.')
-        elif n < 1:
-            raise ValueError('n must be greater than 0.')
+            raise TypeError('1st argument must be a tuple')
+        if type(n) != int:
+            raise TypeError('2nd argument must be integer')
+        if n < 0:
+            n = -n
+            P = self.invert(P)
+        if n == 0:
+            return O
         elif n == 1:
             return P
         elif n == 2:
             return self.double(P)
 
+        bits = list(bin(n)[2:])
+        bits.reverse()
+        powers = [i for i in range(len(bits)) if bits[i] == '1']
 
-        result_list = []
-        buffer_n = n
-        while n > 1:
+        result = P
+        for i in range(powers[0]):
+            result = self.double(result)
+
+        for power in powers[1:]:
             buffer = P
-            power = 1
-
-            while True:
-                buffer = self.double(buffer, output=False)
-                if pow(2, power + 1) > n:
-                    break
-                else:
-                    power += 1
-
-            n -= 2**power
-            result_list.append( (str(2**power) + 'P', buffer) )
-
-        if n == 1:
-            result_list.append(('P', P))
-
-        result = result_list[0][1]
-        for i in range(1,len(result_list)):
-            result = self.sum(result, result_list[i][1], output=False)
-
-        if output:
-            print('%s%s = %s%s' % (buffer_n, P, result_list[0][0],result_list[0][1]), end='')
-            for i in range(1, len(result_list)):
-                print(' + %s%s' % (result_list[i][0], result_list[i][1]), end='')
-            print(' =', result,'\n')
+            for i in range(power):
+                buffer = self.double(buffer)
+            result = self.sum(result,buffer)
 
         return result
 
     def invert(self, P):
         """P(x1,y1) = P(x1,-y1)"""
         if type(P) != tuple:
-            raise TypeError('P must be a tuple.')
-        return (P[X],-P[Y])
+            raise TypeError('1st argument be a tuple')
+        return (P[X],((-P[Y]) % self.p))
+
+    def order(self,P):
+        n = 2
+        while True:
+            if self.mult(P,n) == O:
+                return n
+            n += 1
+
+    def isSingular(self):
+        D = (4*self.a**3 + 27*self.b**2) % self.p
+        if D != 0 and self.p != 2 and self.p != 3:
+            return False
+        else:
+            return True
 
     def __str__(self):
         if self.a > 0:
@@ -287,76 +323,122 @@ class EllipticCurve:
         else:
             b = ''
 
-        return "E"+str(self.p)+str((self.a,self.b))+": y^2 = x^3"+a+b+" (mod"+str(self.p)+")\n"
-
-class CustomDropDown(DropDown):
-    data = StringProperty("")
-    acts = ['+','-','×']
-    pass
+        return "E"+str(self.p)+str((self.a,self.b))+": y^2 = x^3"+a+b+" (mod "+str(self.p)+")"
 
 class Elliptic(BoxLayout):
-
+    actions = ['+','-','×']
     def parse_curve_data(self):
         def junk(string):
-                        list(string)
+            list(string)
+            numb = ''
+            symbl = ''
+            new = []
+            for i in range(len(string)):
+                try: int(numb+string[i])
+                except ValueError:
+                    if numb:
+                        new.append(numb)
                         numb = ''
+                    symbl += string[i]
+                    if i == len(string)-1:
+                        new.append(symbl)
+                else:
+                    if symbl:
+                        new.append(symbl)
                         symbl = ''
-                        new = []
-                        for i in range(len(string)):
-                            try: int(numb+string[i])
-                            except ValueError:
-                                if numb:
-                                    new.append(numb)
-                                    numb = ''
-                                symbl += string[i]
-                                if i == len(string)-1:
-                                    new.append(symbl)
-                            else:
-                                if symbl:
-                                    new.append(symbl)
-                                    symbl = ''
-                                numb += string[i]
-                                if i == len(string)-1:
-                                    new.append(numb)
-                        i = 0
-                        while i < len(new):
-                            if new[i] == '.':
-                                if new[i-1].isdigit():
-                                    if new[i+1] and new[i+1].isdigit():
-                                        new[i] += new.pop(i+1)
-                                        new[i-1] += new.pop(i)
-                                        i -= 1
-                                    else:
-                                        new.pop(i)
-                                        i -= 1
-                            i += 1
-                        i = 0
-                        while i < len(new):
-                            l = len(new[i])
-                            if new[i][l-1:l] == '-':
-                                if i == 0:
-                                    new[i] += new.pop(i+1)
-                                elif new[i][l-2] == '(':
-                                    new[i] = new[i][:l-1]
-                                    new[i+1] = '-'+new[i+1]
-                            i += 1
+                    numb += string[i]
+                    if i == len(string)-1:
+                        new.append(numb)
+            i = 0
+            while i < len(new):
+                if new[i] == '.':
+                    if new[i-1].isdigit():
+                        if new[i+1] and new[i+1].isdigit():
+                            new[i] += new.pop(i+1)
+                            new[i-1] += new.pop(i)
+                            i -= 1
+                        else:
+                            new.pop(i)
+                            i -= 1
+                i += 1
+            i = 0
+            while i < len(new):
+                l = len(new[i])
+                if new[i][l-1:l] == '-':
+                    if i == 0:
+                        new[i] += new.pop(i+1)
+                    elif new[i][l-2] == '(':
+                        new[i] = new[i][:l-1]
+                        new[i+1] = '-'+new[i+1]
+                i += 1
 
-                        return new
+            return new
         data = junk(self.curve_data.text)
         if len(data) != 6 and len(data) != 5:
             return False
         for i in range(0,len(data),2):
-            if not Crypto.isint(data[i]):
+            if not data[i].isdigit():
                 return False
         p = int(data[0])
-        if p < 4:
-            return False
         a = int(data[2])
         b = int(data[4])
         return (a,b),p
 
+    def curve_data_focus(self, instance):
+        if instance.focused:
+            instance.foreground_color = [0,0,0,1]
+            if instance.text == 'p(a,b)':
+                instance.text = ''
+        elif instance.text == '':
+                instance.foreground_color = [0,0,0,.5]
+                instance.text = 'p(a,b)'
+
+    def input1_focus(self, instance):
+        if instance.focused:
+            instance.foreground_color = [0,0,0,1]
+            if instance.text == 'x,y' or instance.text == 'n':
+                instance.text = ''
+        elif instance.text == '':
+            instance.foreground_color = [0,0,0,.5]
+            if self.action.text == self.actions[2]:
+                tmp = self.input2.text
+                if tmp.isdigit() or tmp == 'n':
+                    instance.text = 'x,y'
+                else:
+                    instance.text = 'n'
+            else:
+                if instance.text == '':
+                    instance.text = 'x,y'
+
+    def input2_focus(self, instance):
+        if instance.focused:
+            instance.foreground_color = [0,0,0,1]
+            if instance.text == 'x,y' or instance.text == 'n':
+                instance.text = ''
+        elif instance.text == '':
+            instance.foreground_color = [0,0,0,.5]
+            if self.action.text == self.actions[2]:
+                tmp = self.input1.text
+                if tmp.isdigit() or tmp == 'n':
+                    instance.text = 'x,y'
+                else:
+                    instance.text = 'n'
+            else:
+                if instance.text == '':
+                    instance.text = 'x,y'
+
+    def on_dropdown_select(self,instance):
+        setattr(self.action, 'text', instance.data)
+
+        self.input1.focused = True
+        self.input1_focus(self.input1)
+        self.input1.focused = False
+
+        self.input2.focused = True
+        self.input2_focus(self.input2)
+        self.input2.focused = False
+
     def result(self):
-        actions = ['+','-','×']
         self.result_input.text = ''
 
         if type(self.parse_curve_data()) != tuple:
@@ -379,7 +461,7 @@ class Elliptic(BoxLayout):
             self.result_input.text = 'Ошибка'
             return
 
-        elif action == actions[2]:
+        elif action == self.actions[2]:
             if type(in1) == tuple and type(in2) == tuple:
                 self.result_input.text = 'Ошибка'
                 return
@@ -392,26 +474,20 @@ class Elliptic(BoxLayout):
                 n = in1
                 P = in2
 
-            if n < 1:
-                self.result_input.text = 'Ошибка'
-                return
-
             result = E.mult(P,n)
 
-        elif action == actions[0] or action == actions[1]:
+        elif action == self.actions[0] or action == self.actions[1]:
             if type(in1) == int or type(in2) == int:
                 self.result_input.text = 'Ошибка'
                 return
             P = in1
             Q = in2
-            if action == actions[0]:
+            if action == self.actions[0]:
                 result = E.sum(P,Q)
             else:
                 result = E.sub(P,Q)
+
         self.result_input.text = str(result)
-
-
-
 
 class Usual(BoxLayout):
     entry_status = '0'

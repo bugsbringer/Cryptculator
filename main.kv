@@ -16,10 +16,11 @@
     valign: 'center'
 
 <CustomDropDown>:
+  max_height: 30
   Button:
     text: root.acts[0]
     size_hint_y: None
-    height: self.height
+    height: root.max_height//3
     background_color: .14,.14,.17, 1
     font_size: self.height
     on_release:
@@ -28,7 +29,7 @@
   Button:
     text: root.acts[1]
     size_hint_y: None
-    height: self.height
+    height: root.max_height//3
     background_color: .14,.14,.17, 1
     font_size: self.height
     on_release:
@@ -37,7 +38,7 @@
   Button:
     text: root.acts[2]
     size_hint_y: None
-    height: self.height
+    height: root.max_height//3
     background_color: .14,.14,.17, 1
     font_size: self.height
     on_release:
@@ -55,7 +56,7 @@
 
   CustomDropDown:
     id: dropdown
-    on_select: setattr(root.action, 'text', self.data)
+    on_select: root.on_dropdown_select(self)
 
   BoxLayout:
     size_hint_y: .05
@@ -78,6 +79,8 @@
       CustomTextInput:
         id:curve_data
         text: 'p(a,b)'
+        on_focus: root.curve_data_focus(self)
+        foreground_color: 0,0,0,.5
         multiline: False
         font_size: self.height//1.75
 
@@ -97,18 +100,25 @@
           orientation: 'vertical'
           CustomTextInput:
             id: input1
+            text: 'x,y'
+            on_focus: root.input1_focus(self)
+            foreground_color: 0,0,0,.5
             multiline: False
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: input2
+            text: 'x,y'
+            on_focus: root.input2_focus(self)
             multiline: False
+            foreground_color: 0,0,0,.5
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: result_input
-            text_validate_unfocus: False
+            text: 'Результат'
             multiline: False
+            readonly: True
             text_size: self.width, self.height
             font_size: self.height//2
         BoxLayout:
@@ -117,10 +127,10 @@
           Button:
             text: '+'
             id: action
-            height: input1.height
+            background_color: .14,.14,.17, 1
             font_size: self.height//2
             on_release:
-              setattr(root.dropdown,'height',input1.height)
+              setattr(root.dropdown,'max_height',self.height//0.7)
               root.dropdown.open(self)
           Button:
             text: '='
