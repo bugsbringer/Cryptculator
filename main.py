@@ -13,13 +13,16 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.dropdown import DropDown
 from kivy.properties import *
-try:
-    import android
-except ImportError:
-    from kivy.config import Config
-    from kivy.core.window import Window
-    Config.set('graphics', 'resizable', '0')
-    Window.size = (306, 544)
+
+DEBUG = False
+if DEBUG:
+    try:
+        import android
+    except ImportError:
+        from kivy.config import Config
+        from kivy.core.window import Window
+        Config.set('graphics', 'resizable', '0')
+        Window.size = (306, 544)
 
 X = 0
 Y = 1
@@ -90,6 +93,17 @@ class Crypto:
             return False
         else:
             return True
+
+    def isdigit(n):
+        try:
+            n = float(n)
+        except Exception as e:
+            return False
+        else:
+            if n == int(n):
+                return True
+            else:
+                return False
 
     def isint(n):
         try:
@@ -377,7 +391,7 @@ class Elliptic(BoxLayout):
         if len(data) != 6 and len(data) != 5:
             return False
         for i in range(0,len(data),2):
-            if not data[i].isdigit():
+            if not Crypto.isdigit(data[i]):
                 return False
         p = int(data[0])
         a = int(data[2])
