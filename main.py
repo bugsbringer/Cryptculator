@@ -14,7 +14,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.dropdown import DropDown
 from kivy.properties import *
 
-DEBUG = False
+DEBUG = 0
 if DEBUG:
     try:
         import android
@@ -29,6 +29,8 @@ Y = 1
 O = (0,0)
 
 class CustomTextInput(TextInput):
+    #‘text’, ‘number’, ‘url’, ‘mail’, ‘datetime’, ‘tel’ or ‘address’.
+    input_type = 'number'
     use_bubble = True
 
     def on_focus(self, instance, value):
@@ -454,7 +456,7 @@ class Elliptic(BoxLayout):
 
     def result(self):
         self.result_input.text = ''
-
+        self.result_input.foreground_color = [1,0,0,.5]
         if type(self.parse_curve_data()) != tuple:
             self.result_input.text = 'Ошибка'
             return
@@ -500,7 +502,7 @@ class Elliptic(BoxLayout):
                 result = E.sum(P,Q)
             else:
                 result = E.sub(P,Q)
-
+        self.result_input.foreground_color = [0,0,0,1]
         self.result_input.text = str(result)
 
 class Usual(BoxLayout):
