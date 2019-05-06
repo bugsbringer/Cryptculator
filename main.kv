@@ -15,32 +15,36 @@
     halign: 'right'
     valign: 'center'
 
+<CustomTextInput>:
+  input_type: 'tel'
+  allow_copy: True
+  use_bubble: True
+  multiline: False
+  foreground_color: [0,0,0,.5]
+
 <CustomDropDown>:
-  max_height: 30
+  max_height: 0
   Button:
     text: root.acts[0]
     size_hint_y: None
-    height: root.max_height//3
+    height: 0
     background_color: .14,.14,.17, 1
-    font_size: self.height
     on_release:
       root.data = self.text
       root.select(self.text)
   Button:
     text: root.acts[1]
     size_hint_y: None
-    height: root.max_height//3
+    height: 0
     background_color: .14,.14,.17, 1
-    font_size: self.height
     on_release:
       root.data = self.text
       root.select(self.text)
   Button:
     text: root.acts[2]
     size_hint_y: None
-    height: root.max_height//3
+    height: 0
     background_color: .14,.14,.17, 1
-    font_size: self.height
     on_release:
       root.data = self.text
       root.select(self.text)
@@ -80,8 +84,6 @@
         id:curve_data
         text: 'p(a,b)'
         on_focus: root.curve_data_focus(self)
-        foreground_color: 0,0,0,.5
-        multiline: False
         font_size: self.height//1.75
 
   BoxLayout:
@@ -102,39 +104,33 @@
           CustomTextInput:
             id: input1
             text: 'x,y'
-            on_focus: root.input1_focus(self)
-            foreground_color: 0,0,0,.5
-            multiline: False
+            on_focus: root.input_focus(self)
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: input2
             text: 'x,y'
-            on_focus: root.input2_focus(self)
-            multiline: False
-            foreground_color: 0,0,0,.5
+            on_focus: root.input_focus(self)
             text_size: self.width, self.height
             font_size: self.height//2
-          CustomTextInput:
+          ReadOnlyTextInput:
             id: result_input
             text: 'Результат'
-            foreground_color: 0,0,0,.5
-            multiline: False
-            readonly: True
+            on_focus: root.result_focus(self)
             text_size: self.width, self.height
             font_size: self.height//2
         BoxLayout:
           size_hint_x: .3
           orientation: 'vertical'
           spacing: 1
-          padding:1,1
+          padding:1
           Button:
             text: '+'
             id: action
             background_color: .14,.14,.17, 1
             font_size: self.height//2
             on_release:
-              setattr(root.dropdown,'max_height',self.height//0.7)
+              setattr(root.dropdown,'max_height',self.height//0.75)
               root.dropdown.open(self)
           Button:
             text: '='
