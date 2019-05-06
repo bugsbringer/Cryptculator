@@ -46,11 +46,8 @@ class CustomTextInput(TextInput):
         data = Clipboard.paste()
         text = self.text
         x = self.cursor[0]
-        print(self.cursor)
         self.text = text[:x]+data+text[x:]
-        print(self.cursor)
         setattr(self,'cursor',((len(data)+x),self.cursor[1]))
-        print(self.cursor)
 
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
