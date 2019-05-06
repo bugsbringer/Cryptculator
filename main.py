@@ -1,41 +1,53 @@
 __version__ = '0.3.1'
-from kivy.base import runTouchApp
+
 from kivy.clock import Clock
-from kivy.uix.textinput import TextInput
+from kivy.properties import *
+from kivy.base import runTouchApp
+from kivy.core.clipboard import Clipboard
+from kivy.lang.builder import Builder
+
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.lang.builder import Builder
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.recycleview import ScrollView
+from kivy.uix.textinput import TextInput
 from kivy.uix.togglebutton import ToggleButton
-from kivy.uix.screenmanager import ScreenManager, Screen
+
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.anchorlayout import AnchorLayout
+
 from kivy.uix.dropdown import DropDown
-from kivy.properties import *
+from kivy.uix.recycleview import ScrollView
+from kivy.uix.screenmanager import ScreenManager, Screen
 
-DEBUG = 0
-if DEBUG:
-    try:
-        import android
-    except ImportError:
-        from kivy.config import Config
-        from kivy.core.window import Window
-        Config.set('graphics', 'resizable', '0')
-        Window.size = (306, 544)
+#my local modules
+from elliptic import EllipticCurve
+import crypto
+import tools
 
-X = 0
-Y = 1
-O = (0,0)
+#for DEBUG:
+try:
+    import android
+except ImportError:
+    from kivy.core.window import Window
+    Window.size = (306, 544)
 
 class CustomTextInput(TextInput):
-    #‘text’, ‘number’, ‘url’, ‘mail’, ‘datetime’, ‘tel’ or ‘address’.
-    input_type = 'number'
-    use_bubble = True
 
-    def on_focus(self, instance, value):
-        if self.text == 'p(a,b)':
-            self.text = ''
+
+    def copy(self, data=''):
+         Clipboard.copy(self.selection_text)
+
+    def cut(self):
+        Clipboard.copy(self.selection_text)
+        data = self.selection_text
+        self.delete_selection()
+
+    def paste(self):
+        data = Clipboard.paste()
+        text = self.text
+        x = self.cursor[0]
+        self.text = text[:x]+data+text[x:]
+        setattr(self,'cursor',((len(data)+x),self.cursor[1]))
 
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
@@ -45,13 +57,29 @@ class CustomTextInput(TextInput):
             s = ''
         return super(CustomTextInput, self).insert_text(s, from_undo=from_undo)
 
+class ReadOnlyTextInput(CustomTextInput):
+
+
+    def insert_text(self, substring, from_undo=False):
+        return super(ReadOnlyTextInput, self).insert_text('', from_undo=from_undo)
+
 class CustomDropDown(DropDown):
     data = StringProperty("")
     acts = ['+','-','×']
-    pass
+
+
+    def open(self,instance):
+        for child in self.children[0].children:
+            if child.text == instance.text:
+                child.height = 0
+            else:
+                child.height = self.max_height//2
+            child.font_size = child.height//1.55
+        return super(CustomDropDown, self).open(instance)
 
 class CustomToggleButton(ToggleButton):
     can_color = ListProperty([1, 0.2, 0.1, 0])
+
 
     def on_state(self, instance, value):
         if value == 'down':
@@ -63,12 +91,15 @@ class CustomToggleButton(ToggleButton):
 
 class CustomButton(Button):
     __events__ = ('on_long_press', )
+    long_press_time = NumericProperty(1)
+
     functions = ListProperty(['','',''])
     cur_func = NumericProperty(0)
     funcs_colors = ListProperty([(.5,.15,.6,1),
                                 (.75, .16, .23, 1),
                                 (.34,.83,.56,1),])
-    long_press_time = NumericProperty(1)
+
+
 
     def on_state(self, instance, value):
         if value == 'down':
@@ -81,324 +112,17 @@ class CustomButton(Button):
         self.dispatch('on_long_press')
 
     def on_long_press(self, *largs):
+        count = len(self.functions) - self.functions.count('')
+        self.cur_func = ((self.cur_func + 1) % count)
         pass
 
 class Row(BoxLayout):
     fs = NumericProperty()
     lable_text = StringProperty("")
 
-class Crypto:
-    def isnum(n):
-        try:
-            n = float(n)
-        except Exception as e:
-            return False
-        else:
-            return True
-
-    def isdigit(n):
-        try:
-            n = float(n)
-        except Exception as e:
-            return False
-        else:
-            if n == int(n):
-                return True
-            else:
-                return False
-
-    def isint(n):
-        try:
-            int(n)
-        except Exception as e:
-            return False
-        else:
-            if n == int(n):
-                return True
-            else:
-                return False
-
-    def factorization(N):
-        n = N
-        dividers = []
-        degrees = []
-        if n > 2 and n % 2 == 0:
-            dividers.append(2)
-            quantity = 0
-            while n % 2 == 0:
-                n = n // 2
-                quantity += 1
-            degrees.append(quantity)
-
-        sqrtN = int(pow(n,0.5))+1
-        for divider in range(3,sqrtN,2):
-            if n % divider == 0:
-                dividers.append(divider)
-                quantity = 0
-                while n % divider == 0:
-                    n = n // divider
-                    quantity += 1
-                degrees.append(quantity)
-
-            if n <= 1: break
-
-        if n != 1 and n != N:
-            dividers.append(n)
-            degrees.append(1)
-
-        return dividers,degrees
-
-    def Euler_func(n):
-        n = int(n)
-        if n > 1:
-            dividers = Crypto.factorization(n)[0]
-            if not dividers:
-                return n - 1
-            else:
-                buf = 1
-                for divider in dividers:
-                    buf *= 1 - 1/divider
-                return round(n * buf)
-        elif n == 1: return 1
-        else: return None
-
-    def InvMod(e,mod):
-        return pow(e,Crypto.Euler_func(mod)-1,mod)
-
-    def NOD(*args):
-        """Попарная проверка"""
-        if len(args) > 1:
-            if len(args) == 2:
-                a = args[0]
-                b = args[1]
-                while b:
-                    a, b = b, a % b
-                return a
-            else:
-                result = []
-                for i in range(len(args)-1):
-                    a = args[i]
-                    for j in range(i+1,len(args)):
-                        b = args[j]
-                        result.append(Crypto.NOD(a,b))
-                return result
-
-    def NOK(*args):
-        if len(args) > 1:
-            result = abs(args[0]*args[1]) // Crypto.NOD(args[0],args[1])
-            if len(args) == 2:
-                    return result
-            else:
-                for i in range(2,len(args)):
-                    result = Crypto.NOK(result,args[i])
-                return result
-        else:
-            raise TypeError('NOK() takes exactly 2 or more arguments(%s given)'% len(args))
-
-class EllipticCurve:
-    def __init__(self, ab, p):
-        if type(ab) != tuple:
-            raise TypeError('1st argument must be a tuple')
-        if type(p) != int:
-            raise TypeError('2nd argument must be a integer')
-        if p <= 1:
-            raise ValueError('2nd argument must be greater than 1')
-        self.a, self.b = ab
-        self.p = p
-
-    def sum(self, P, Q):
-        """(x1,y1) + (x2,y2) = (x3,y3)"""
-        if type(P) != tuple:
-            raise TypeError('1st argument must be a tuple')
-        elif type(Q) != tuple:
-            raise TypeError('2nd argument must be a tuple')
-
-        if P == O:
-            return Q
-        elif Q == O:
-            return P
-
-        if P == self.invert(Q):
-            return O
-        elif P == Q:
-            return self.double(P)
-
-        new = [0,0]
-        if self.p == 2:
-            lam = ((Q[Y] + P[Y]) * Crypto.InvMod(Q[X] + P[X], self.p)) % self.p
-            new[X] = lam**2 + P[X] + Q[X]
-            new[Y] = lam * (P[X] + new[X]) + P[Y] + self.a
-        else:
-            lam = ((Q[Y] - P[Y]) * Crypto.InvMod(Q[X] - P[X], self.p)) % self.p
-            if self.p == 3:
-                new[X] = lam**2 - P[X] - Q[X] - self.a
-            else:
-                new[X] = lam**2 - P[X] - Q[X]
-            new[Y] = lam * (P[X] - new[X]) - P[Y]
-
-        new[X] = new[X] % self.p
-        new[Y] = new[Y] % self.p
-        return tuple(new)
-
-    def sub(self, P, Q):
-        """(x1,y1) - (x2,y2) = (x3,y3)"""
-        return self.sum(P, self.invert(Q))
-
-    def double(self, P):
-        """2(x1,y1) = (x3,y3)"""
-        if type(P) != tuple:
-            raise TypeError('1st argument must be a tuple')
-        if P == O:
-            return O
-
-        new = [0,0]
-        if self.p == 2:
-            new[X] = ((P[X]**4 + self.b**2) * Crypto.InvMod(self.a**2,self.p)) % self.p
-            lam = (P[X]**2 + self.b) * Crypto.InvMod(self.a,self.p)
-            new[Y] = lam * (P[X] + new[X]) + P[Y] + self.a
-
-        if self.p == 3:
-            lam = ((self.a*P[X]**2 - self.b) * Crypto.InvMod(P[Y],self.p)) % self.p
-            new[X] = lam**2 - self.a + P[X]
-            new[Y] = lam*(P[X] - new[X]) - P[Y]
-
-        else:
-            lam = ((3*P[X]**2 + self.a) * Crypto.InvMod(2*P[Y],self.p)) % self.p
-            new[X] = lam**2 - 2*P[X]
-            new[Y] = lam*(P[X] - new[X]) - P[Y]
-
-        new[X] = new[X] % self.p
-        new[Y] = new[Y] % self.p
-
-        return tuple(new)
-
-    def mult(self, P, n):
-        """n*P(x1,y1) = R(x3,y3)"""
-        if type(P) != tuple:
-            raise TypeError('1st argument must be a tuple')
-        if type(n) != int:
-            raise TypeError('2nd argument must be integer')
-        if n < 0:
-            n = -n
-            P = self.invert(P)
-        if n == 0:
-            return O
-        elif n == 1:
-            return P
-        elif n == 2:
-            return self.double(P)
-
-        bits = list(bin(n)[2:])
-        bits.reverse()
-        powers = [i for i in range(len(bits)) if bits[i] == '1']
-
-        result = P
-        for i in range(powers[0]):
-            result = self.double(result)
-
-        for power in powers[1:]:
-            buffer = P
-            for i in range(power):
-                buffer = self.double(buffer)
-            result = self.sum(result,buffer)
-
-        return result
-
-    def invert(self, P):
-        """P(x1,y1) = P(x1,-y1)"""
-        if type(P) != tuple:
-            raise TypeError('1st argument be a tuple')
-        return (P[X],((-P[Y]) % self.p))
-
-    def order(self,P):
-        n = 2
-        while True:
-            if self.mult(P,n) == O:
-                return n
-            n += 1
-
-    def isSingular(self):
-        D = (4*self.a**3 + 27*self.b**2) % self.p
-        if D != 0 and self.p != 2 and self.p != 3:
-            return False
-        else:
-            return True
-
-    def __str__(self):
-        if self.a > 0:
-            a = ' + '+str(self.a)+'x'
-        elif self.a < 0:
-            a = ' - '+str(abs(self.a))+'x'
-        else:
-            a = ''
-
-        if self.b > 0:
-            b = ' + '+str(self.b)
-        elif self.b < 0:
-            b = ' - '+str(abs(self.b))
-        else:
-            b = ''
-
-        return "E"+str(self.p)+str((self.a,self.b))+": y^2 = x^3"+a+b+" (mod "+str(self.p)+")"
-
 class Elliptic(BoxLayout):
     actions = ['+','-','×']
-    def parse_curve_data(self):
-        def junk(string):
-            list(string)
-            numb = ''
-            symbl = ''
-            new = []
-            for i in range(len(string)):
-                try: int(numb+string[i])
-                except ValueError:
-                    if numb:
-                        new.append(numb)
-                        numb = ''
-                    symbl += string[i]
-                    if i == len(string)-1:
-                        new.append(symbl)
-                else:
-                    if symbl:
-                        new.append(symbl)
-                        symbl = ''
-                    numb += string[i]
-                    if i == len(string)-1:
-                        new.append(numb)
-            i = 0
-            while i < len(new):
-                if new[i] == '.':
-                    if new[i-1].isdigit():
-                        if new[i+1] and new[i+1].isdigit():
-                            new[i] += new.pop(i+1)
-                            new[i-1] += new.pop(i)
-                            i -= 1
-                        else:
-                            new.pop(i)
-                            i -= 1
-                i += 1
-            i = 0
-            while i < len(new):
-                l = len(new[i])
-                if new[i][l-1:l] == '-':
-                    if i == 0:
-                        new[i] += new.pop(i+1)
-                    elif new[i][l-2] == '(':
-                        new[i] = new[i][:l-1]
-                        new[i+1] = '-'+new[i+1]
-                i += 1
 
-            return new
-        data = junk(self.curve_data.text)
-        if len(data) != 6 and len(data) != 5:
-            return False
-        for i in range(0,len(data),2):
-            if not Crypto.isdigit(data[i]):
-                return False
-        p = int(data[0])
-        a = int(data[2])
-        b = int(data[4])
-        return (a,b),p
 
     def curve_data_focus(self, instance):
         if instance.focused:
@@ -409,59 +133,78 @@ class Elliptic(BoxLayout):
                 instance.foreground_color = [0,0,0,.5]
                 instance.text = 'p(a,b)'
 
-    def input1_focus(self, instance):
-        if instance.focused:
-            instance.foreground_color = [0,0,0,1]
-            if instance.text == 'x,y' or instance.text == 'n':
-                instance.text = ''
-        elif instance.text == '':
-            instance.foreground_color = [0,0,0,.5]
-            if self.action.text == self.actions[2]:
-                tmp = self.input2.text
-                if tmp.isdigit() or tmp == 'n':
-                    instance.text = 'x,y'
-                else:
-                    instance.text = 'n'
-            else:
-                if instance.text == '':
-                    instance.text = 'x,y'
+    def input_focus(self, instance):
+        if instance == self.input1:
+            tmp = self.input2
+        elif instance == self.input2:
+            tmp = self.input1
 
-    def input2_focus(self, instance):
         if instance.focused:
             instance.foreground_color = [0,0,0,1]
             if instance.text == 'x,y' or instance.text == 'n':
                 instance.text = ''
-        elif instance.text == '':
-            instance.foreground_color = [0,0,0,.5]
-            if self.action.text == self.actions[2]:
-                tmp = self.input1.text
-                if tmp.isdigit() or tmp == 'n':
-                    instance.text = 'x,y'
+        else:
+            if instance.text == '':
+                instance.foreground_color = [0,0,0,.5]
+                if self.action.text == self.actions[2]:
+                    if tmp.text.isdigit() or tmp.text == 'n':
+                        instance.text = 'x,y'
+                    else:
+                        instance.text = 'n'
                 else:
-                    instance.text = 'n'
-            else:
-                if instance.text == '':
-                    instance.text = 'x,y'
+                    if instance.text == '':
+                        instance.text = 'x,y'
+        if instance.text != '':
+            if self.action.text == self.actions[2]:
+                if tmp.text == 'x,y' or tmp.text == 'n':
+                    tmp.foreground_color = [0,0,0,.5]
+                    if instance.text.isdigit() or instance.text == 'n':
+                        tmp.text = 'x,y'
+                    else:
+                        tmp.text = 'n'
+
+    def result_focus(self, instance):
+        if instance.focused:
+            instance.foreground_color = [0,0,0,1]
+            if instance.text == 'Результат' or instance.text == 'Ошибка':
+                instance.text = ''
+        else:
+            if instance.text == '':
+                instance.foreground_color = [0,0,0,.5]
+                instance.text = 'Результат'
 
     def on_dropdown_select(self,instance):
         setattr(self.action, 'text', instance.data)
 
         self.input1.focused = True
-        self.input1_focus(self.input1)
         self.input1.focused = False
 
         self.input2.focused = True
-        self.input2_focus(self.input2)
         self.input2.focused = False
 
     def result(self):
+
+
+        def parse_curve_data():
+            data = tools.junk(self.curve_data.text)
+            if len(data) != 6 and len(data) != 5:
+                return False
+            for i in range(0,len(data),2):
+                if not crypto.isdigit(data[i]):
+                    return False
+            p = int(data[0])
+            a = int(data[2])
+            b = int(data[4])
+            return (a,b),p
+
         self.result_input.text = ''
         self.result_input.foreground_color = [1,0,0,.5]
-        if type(self.parse_curve_data()) != tuple:
+        tmp_parse = parse_curve_data()
+        if type(tmp_parse) != tuple:
             self.result_input.text = 'Ошибка'
             return
 
-        ab,p = self.parse_curve_data()
+        ab,p = tmp_parse
 
         try:
             E = EllipticCurve(ab,p)
@@ -607,59 +350,10 @@ class Usual(BoxLayout):
         self.updateEntry()
 
     def EntryParser(self):
+
+
         def magic(string):
-            def junk(string):
-                list(string)
-                numb = ''
-                symbl = ''
-                new = []
-                for i in range(len(string)):
-                    try: int(numb+string[i])
-                    except ValueError:
-                        if numb:
-                            new.append(numb)
-                            numb = ''
-                        symbl += string[i]
-                        if i == len(string)-1:
-                            new.append(symbl)
-                    else:
-                        if symbl:
-                            new.append(symbl)
-                            symbl = ''
-                        numb += string[i]
-                        if i == len(string)-1:
-                            new.append(numb)
-                i = 0
-                while i < len(new):
-                    if new[i] == '.':
-                        if new[i-1].isdigit():
-                            if new[i+1] and new[i+1].isdigit():
-                                new[i] += new.pop(i+1)
-                                new[i-1] += new.pop(i)
-                                i -= 1
-                            else:
-                                new.pop(i)
-                                i -= 1
-                    i += 1
-                i = 0
-                while i < len(new):
-                    l = len(new[i])
-                    if new[i][l-1:l] == '-':
-                        if i == 0:
-                            new[i] += new.pop(i+1)
-                        elif new[i][l-2] == '(':
-                            new[i] = new[i][:l-1]
-                            new[i+1] = '-'+new[i+1]
-                    i += 1
-
-                return new
-            def puck(massive):
-                string = ''
-                for i in massive:
-                    string += i
-                return string
-            buffer = junk(string)
-
+            buffer = tools.junk(string)
             i = 0
             while i < len(buffer):
                 if buffer[i] == '**' and buffer[i+2] == '%':
@@ -667,8 +361,10 @@ class Usual(BoxLayout):
                         A = int(buffer[i-1])
                         POW = int(buffer[i+1])
                         MOD = int(buffer[i+3])
-                    except Exception as e: return 'Ошибка'
-                    else: RESULT = pow(A,POW,MOD)
+                    except Exception as e:
+                        return 'Ошибка'
+                    else:
+                        RESULT = pow(A,POW,MOD)
                     buffer[i-1] = str(RESULT)
                     buffer.pop(i)
                     buffer.pop(i)
@@ -682,7 +378,7 @@ class Usual(BoxLayout):
                         E = int(buffer[i-1])
                         MOD = int(buffer[i+1])
                     except Exception as e: return 'Ошибка'
-                    else: RESULT = Crypto.InvMod(E,MOD)
+                    else: RESULT = crypto.inv_mod(E,MOD)
                     buffer[i-1] = str(RESULT)
                     for j in range(i+1,i-1,-1):
                         buffer.pop(j)
@@ -690,7 +386,7 @@ class Usual(BoxLayout):
 
                 i += 1
 
-            return puck(buffer)
+            return ''.join([char for char in buffer])
 
         while len(self.entry_status)>2 and self.entry_status[len(self.entry_status)-1] == '(':
             self.entry_status = self.entry_status[:len(self.entry_status)-2]
@@ -707,12 +403,12 @@ class Usual(BoxLayout):
         result = result.replace('×','*')
         result = result.replace('÷','/')
         result = result.replace('^','**')
-        result = result.replace('НОД','Crypto.NOD')
-        result = result.replace('НОК','Crypto.NOK')
-        result = result.replace('φ','Crypto.Euler_func')
-        result = result.replace('F','Crypto.factorization')
+        result = result.replace('НОД','crypto.gcd')
+        result = result.replace('НОК','crypto.lcm')
+        result = result.replace('φ','crypto.euler')
+        result = result.replace('F','crypto.factorization')
 
-        exeptions = ['Crypto.Euler_func','Crypto.NOD','Crypto.NOK','Crypto.factorization']
+        exeptions = ['crypto.euler','crypto.gcd','crypto.lcm','crypto.factorization']
 
         if '(' in result and ')' in result:
             END = result.find(')')
@@ -731,14 +427,14 @@ class Usual(BoxLayout):
                 try:
                     if FUNC_BEFORE:
                         buffer = FUNC_BEFORE+'('+buffer+')'
-                        if FUNC_BEFORE == 'Crypto.factorization':
+                        if FUNC_BEFORE == 'crypto.factorization':
                             return eval(buffer)
 
                     elif ',' in buffer:
                         return 'Ошибка'
                     tmp = eval(buffer)
 
-                    if Crypto.isint(tmp):
+                    if crypto.isint(tmp):
                         tmp = int(tmp)
                     buffer = str(tmp)
 
@@ -786,7 +482,7 @@ class Usual(BoxLayout):
                 self.entry_status = 'Ошибка'
             else:
 
-                    if Crypto.isint(self.entry_status):
+                    if crypto.isint(self.entry_status):
                         self.entry_status = int(self.entry_status)
 
                     self.entry_status = str(self.entry_status)
@@ -832,8 +528,6 @@ class Usual(BoxLayout):
         self.updateEntry()
 
     def switch_key(self,instance):
-        count = len(instance.functions)-instance.functions.count('')
-        instance.cur_func = ((instance.cur_func + 1) % count)
         self.delete(None)
 
     def delete(self,instance):
@@ -862,6 +556,8 @@ class RootWidget(BoxLayout):
     def __init__(self):
         super().__init__()
         self.screens = ['Обычный','Эллиптический']
+
+
 
     def switch_screen(self,instance):
         trans = {   self.screens[0]:'right',
