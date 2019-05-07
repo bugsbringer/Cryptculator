@@ -36,7 +36,7 @@ version.filename = %(source.dir)s/main.py
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy
+requirements = python3,kivy,hostpython3,cython,pyjnius,plyer
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -85,7 +85,7 @@ fullscreen = 0
 #android.presplash_color = #FFFFFF
 
 # (list) Permissions
-#android.permissions = INTERNET
+android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, INSTALL_PACKAGES ,REQUEST_INSTALL_PACKAGES
 
 # (int) Target Android API, should be as high as possible.
 #android.api = 27
