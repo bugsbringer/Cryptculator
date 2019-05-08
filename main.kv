@@ -15,8 +15,6 @@
         text: 'Новая версия: '+root.git_version
       ProgressBar:
         id: progressbar
-        value: 1
-        max: 100
     BoxLayout:
       size_hint_y: .25
       padding: [self.width//50,self.height//50]
@@ -91,6 +89,7 @@
   on_parent:
     self.on_create()
     self.dropdown.dismiss()
+    root.inputs_update()
 
   CustomDropDown:
     id: dropdown
@@ -171,7 +170,9 @@
               root.dropdown.open(self)
           Button:
             text: '='
-            on_press: root.result()
+            on_press:
+              root.inputs_update()
+              root.result()
             background_color: 1, 0.2, 0.1, .9
 
   BoxLayout:
@@ -187,8 +188,6 @@
   orientation: 'vertical'
   story:story
   entry: entry
-
-  on_parent: self.on_create()
 
   BoxLayout:
     orientation: 'vertical'
@@ -313,7 +312,6 @@
 
 RootWidget:
   manager:manager
-  elip:elip
   canvas.before:
     Color:
       rgba: .1,.1,.13, 1
@@ -326,13 +324,12 @@ RootWidget:
     spacing: 10
     padding: [self.width//30,self.height//20,self.width//30,0]
     CustomToggleButton:
-      text: root.screens[0]
       state:'down'
+      text: root.screens[0]
       on_press: root.switch_screen(self)
     CustomToggleButton:
       text: root.screens[1]
-      on_press:
-        root.switch_screen(self)
+      on_press: root.switch_screen(self)
 
   ScreenManager:
     id: manager
@@ -342,7 +339,6 @@ RootWidget:
     Screen:
       name: root.screens[1]
       Elliptic:
-        id:elip
 
 <CustomButton>:
   text: self.functions[self.cur_func]

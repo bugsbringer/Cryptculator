@@ -25,9 +25,13 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.recycleview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 
-
 from plyer import storagepath
 from plyer import filechooser
+
+#my local modules
+import elliptic
+import crypto
+import tools
 
 #for DEBUG:
 try:
@@ -40,25 +44,32 @@ else:
     from jnius import autoclass
     from plyer.platforms.android import activity
 
-#my local modules
-from elliptic import EllipticCurve
-import crypto
-import tools
+
+APK_FILE_PATH = storagepath.get_downloads_dir()+'/cryptculatorapp.apk'
+if android:
+    Intent = autoclass('android.content.Intent')
+    Uri = autoclass('android.net.Uri')
+
+    File = autoclass('java.io.File')
+    apkFile = File(APK_FILE_PATH)
+    apkFile.delete()
+
+
 
 store = DictStore("cryptculatorapp.data")
 
 
 def check_version(request, result):
-    global github_version, HAVE_UPDATE
+    global github_version
     github_version = str(result)
 
 version_url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/version.txt"
 ver_request = UrlRequest(version_url, verify=False, on_success=check_version )
-ver_request.wait(1)
-
 
 def open_update_window(event):
-    UpdatePopup(cur_version = __version__,git_version = github_version).open()
+    if github_version != '':
+        if float(github_version[2:]) > float(__version__[2:]):
+            UpdatePopup(cur_version = __version__,git_version = github_version).open()
 
 
 class UpdatePopup(Popup):
@@ -69,14 +80,13 @@ class UpdatePopup(Popup):
     def download(self, instance):
         instance.disabled = True
         instance.text = 'Загрузка'
-        self.file_path = storagepath.get_downloads_dir()+'/cryptculatorapp.apk'
 
         url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
 
         self.request = UrlRequest(url,on_success=self.success,
                                 on_failure=self.fail,on_redirect=self.redirect,
                                 on_progress=self.downloading, verify=False,
-                                file_path=self.file_path, chunk_size=1024*1024)
+                                file_path=APK_FILE_PATH, chunk_size=1024*1024)
 
     def setup_app(self, instance):
         instance.disabled = True
@@ -236,6 +246,7 @@ class Elliptic(BoxLayout):
 
 
         def parse_curve_data():
+
             data = tools.junk(self.curve_data.text)
 
             if len(data) < 5 or len(data) > 6:
@@ -253,7 +264,6 @@ class Elliptic(BoxLayout):
 
             return (a,b),p
 
-
         self.result_input.text = ''
         self.result_input.hint_text_color = [1,0,0,.5]
         tmp_parse =  parse_curve_data()
@@ -264,7 +274,7 @@ class Elliptic(BoxLayout):
             ab,p = tmp_parse
 
         try:
-            E = EllipticCurve(ab,p)
+            E = elliptic.EllipticCurve(ab,p)
             in1 = eval(self.input1.text)
             in2 = eval(self.input2.text)
         except Exception as e:
@@ -308,11 +318,6 @@ class Elliptic(BoxLayout):
 class Usual(BoxLayout):
     entry_status = '0'
     operations = ['+','-','÷','×',',','^','mod ']
-
-    def on_create(self):
-        #доделать
-        None
-
 
     def updateEntry(self):
         if self.entry_status == '' or self.entry_status == '()':
@@ -624,9 +629,7 @@ class RootWidget(BoxLayout):
     def __init__(self):
         super().__init__()
         self.screens = ['Обычный','Эллиптический']
-        if github_version:
-            if float(github_version[2:]) > float(__version__[2:]):
-                Clock.schedule_once(open_update_window, 3)
+        Clock.schedule_once(open_update_window, 5)
 
     def switch_screen(self,instance):
         trans = {   self.screens[0]:'right',
