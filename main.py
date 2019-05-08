@@ -1,35 +1,119 @@
 __version__ = '0.3.1'
+github_version = ''
 
 from kivy.clock import Clock
 from kivy.properties import *
 from kivy.base import runTouchApp
-from kivy.core.clipboard import Clipboard
+from kivy.factory import Factory
 from kivy.lang.builder import Builder
+
+from kivy.core.clipboard import Clipboard
+from kivy.storage.dictstore import DictStore
+from kivy.network.urlrequest import UrlRequest
 
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
+from kivy.uix.progressbar import ProgressBar
 from kivy.uix.togglebutton import ToggleButton
 
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.anchorlayout import AnchorLayout
 
+from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.recycleview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
+
+
+from plyer import storagepath
+from plyer import filechooser
+
+#for DEBUG:
+try:
+    import android
+except ImportError:
+    android = None
+    from kivy.core.window import Window
+    Window.size = (306, 544)
+else:
+    from jnius import autoclass
+    from plyer.platforms.android import activity
 
 #my local modules
 from elliptic import EllipticCurve
 import crypto
 import tools
 
-#for DEBUG:
-try:
-    import android
-except ImportError:
-    from kivy.core.window import Window
-    Window.size = (306, 544)
+store = DictStore("cryptculatorapp.data")
+
+
+def check_version(request, result):
+    global github_version, HAVE_UPDATE
+    github_version = str(result)
+
+version_url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/version.txt"
+ver_request = UrlRequest(version_url, verify=False, on_success=check_version )
+ver_request.wait(1)
+
+
+def open_update_window(event):
+    UpdatePopup(cur_version = __version__,git_version = github_version).open()
+
+
+class UpdatePopup(Popup):
+    cur_version = StringProperty("")
+    git_version = StringProperty("")
+
+
+    def download(self, instance):
+        instance.disabled = True
+        instance.text = 'Загрузка'
+        self.file_path = storagepath.get_downloads_dir()+'/cryptculatorapp.apk'
+
+        url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
+
+        self.request = UrlRequest(url,on_success=self.success,
+                                on_failure=self.fail,on_redirect=self.redirect,
+                                on_progress=self.downloading, verify=False,
+                                file_path=self.file_path, chunk_size=1024*1024)
+
+    def setup_app(self, instance):
+        instance.disabled = True
+        instance.text = 'Готово'
+        if android:
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+
+            File = autoclass('java.io.File')
+            apkFile = File(self.file_path)
+
+            intent = Intent()
+            intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
+            intent.setData(Uri.fromFile(apkFile))
+
+            activity.startActivity(intent)
+
+        self.dismiss()
+
+    def success(self, request, result):
+        self.action_button.disabled = False
+        self.action_button.text = 'Установить'
+        self.action_button.bind(on_release=self.setup_app)
+
+    def redirect(self, request, result):
+        self.action_button.text = 'redirect'
+
+    def fail(self, request, result):
+        self.action_button.text = 'fail'
+
+    def error(self, request, error):
+        self.action_button.text = 'error'
+
+    def downloading(self,request, current_size, total_size):
+        percent = current_size*100//total_size
+        self.progressbar.value = percent
 
 class CustomTextInput(TextInput):
 
@@ -123,106 +207,80 @@ class Row(BoxLayout):
 class Elliptic(BoxLayout):
     actions = ['+','-','×']
 
+    def on_create(self):
+        for id in self.ids:
+            if store.exists(id):
+                self.ids[id].text = store.get(id)['value']
 
-    def curve_data_focus(self, instance):
-        if instance.focused:
-            instance.foreground_color = [0,0,0,1]
-            if instance.text == 'p(a,b)':
-                instance.text = ''
-        elif instance.text == '':
-                instance.foreground_color = [0,0,0,.5]
-                instance.text = 'p(a,b)'
+    def inputs_update(self):
+        store.put('curve_data',value=self.curve_data.text)
+        store.put('input1',value=self.input1.text)
+        store.put('input2',value=self.input2.text)
+        store.put('action',value=self.action.text)
 
-    def input_focus(self, instance):
-        if instance == self.input1:
-            tmp = self.input2
-        elif instance == self.input2:
-            tmp = self.input1
+        self.input1.hint_text = 'x,y'
 
-        if instance.focused:
-            instance.foreground_color = [0,0,0,1]
-            if instance.text == 'x,y' or instance.text == 'n':
-                instance.text = ''
-        else:
-            if instance.text == '':
-                instance.foreground_color = [0,0,0,.5]
-                if self.action.text == self.actions[2]:
-                    if tmp.text.isdigit() or tmp.text == 'n':
-                        instance.text = 'x,y'
-                    else:
-                        instance.text = 'n'
+        if self.action.text == self.actions[2]:
+            self.input2.hint_text = 'n'
+
+            if not self.input1.text or not self.input2.text:
+                if self.input1.text and crypto.isdigit(self.input1.text):
+                    self.input1.hint_text = 'n'
+                    self.input2.hint_text = 'x,y'
                 else:
-                    if instance.text == '':
-                        instance.text = 'x,y'
-        if instance.text != '':
-            if self.action.text == self.actions[2]:
-                if tmp.text == 'x,y' or tmp.text == 'n':
-                    tmp.foreground_color = [0,0,0,.5]
-                    if instance.text.isdigit() or instance.text == 'n':
-                        tmp.text = 'x,y'
-                    else:
-                        tmp.text = 'n'
-
-    def result_focus(self, instance):
-        if instance.focused:
-            instance.foreground_color = [0,0,0,1]
-            if instance.text == 'Результат' or instance.text == 'Ошибка':
-                instance.text = ''
+                    self.input1.hint_text = 'x,y'
+                    self.input2.hint_text = 'n'
         else:
-            if instance.text == '':
-                instance.foreground_color = [0,0,0,.5]
-                instance.text = 'Результат'
-
-    def on_dropdown_select(self,instance):
-        setattr(self.action, 'text', instance.data)
-
-        self.input1.focused = True
-        self.input1.focused = False
-
-        self.input2.focused = True
-        self.input2.focused = False
+            self.input2.hint_text = 'x,y'
 
     def result(self):
 
 
         def parse_curve_data():
             data = tools.junk(self.curve_data.text)
-            if len(data) != 6 and len(data) != 5:
+
+            if len(data) < 5 or len(data) > 6:
                 return False
-            for i in range(0,len(data),2):
+
+            for i in [0,2,4]:
                 if not crypto.isdigit(data[i]):
                     return False
-            p = int(data[0])
-            a = int(data[2])
-            b = int(data[4])
+                else:
+                    data[i] = int(data[i])
+
+            p = data[0]
+            a = data[2]
+            b = data[4]
+
             return (a,b),p
 
-        self.result_input.text = ''
-        self.result_input.foreground_color = [1,0,0,.5]
-        tmp_parse = parse_curve_data()
-        if type(tmp_parse) != tuple:
-            self.result_input.text = 'Ошибка'
-            return
 
-        ab,p = tmp_parse
+        self.result_input.text = ''
+        self.result_input.hint_text_color = [1,0,0,.5]
+        tmp_parse =  parse_curve_data()
+        if type(tmp_parse) != tuple:
+            self.result_input.hint_text = 'Ошибка'
+            return
+        else:
+            ab,p = tmp_parse
 
         try:
             E = EllipticCurve(ab,p)
             in1 = eval(self.input1.text)
             in2 = eval(self.input2.text)
         except Exception as e:
-            self.result_input.text = 'Ошибка'
+            self.result_input.hint_text = 'Ошибка'
             return
 
         action = self.action.text
 
         if type(in1) != tuple and type(in2) != tuple:
-            self.result_input.text = 'Ошибка'
+            self.result_input.hint_text = 'Ошибка'
             return
 
         elif action == self.actions[2]:
             if type(in1) == tuple and type(in2) == tuple:
-                self.result_input.text = 'Ошибка'
+                self.result_input.hint_text = 'Ошибка'
                 return
 
             elif type(in1) == tuple:
@@ -237,7 +295,7 @@ class Elliptic(BoxLayout):
 
         elif action == self.actions[0] or action == self.actions[1]:
             if type(in1) == int or type(in2) == int:
-                self.result_input.text = 'Ошибка'
+                self.result_input.hint_text = 'Ошибка'
                 return
             P = in1
             Q = in2
@@ -245,27 +303,36 @@ class Elliptic(BoxLayout):
                 result = E.sum(P,Q)
             else:
                 result = E.sub(P,Q)
-        self.result_input.foreground_color = [0,0,0,1]
+
         self.result_input.text = str(result)
 
 class Usual(BoxLayout):
     entry_status = '0'
     operations = ['+','-','÷','×',',','^','mod ']
-    entry_height = 0
+
+    def on_create(self):
+        #доделать
+        None
+
 
     def updateEntry(self):
-        if not self.entry_height:
-            self.entry_height = self.entry.height
         if self.entry_status == '' or self.entry_status == '()':
             self.entry_status = '0'
-        self.entry.text = self.entry_status
 
-        l = self.entry.texture_size[0]/(len(self.entry.text)*self.entry.texture_size[1])
-        if l < 0.7:
-            if self.entry.font_size > self.entry_height/1.35:
-                self.entry.font_size = self.entry.font_size//1.05
-        else:
-            self.entry.font_size = self.entry_height
+        old_len = len(self.entry.text)
+        self.entry.text = self.entry_status
+        cur_len = len(self.entry.text)
+
+        d = old_len - cur_len
+        l = self.entry.texture_size[0]/(cur_len*self.entry.texture_size[1])
+
+        for i in range(abs(d)):
+            if self.entry.font_size > self.entry.texture_size[1]/1.4 and d < 0 and l < 0.7:
+                self.entry.font_size -= self.entry.texture_size[1]*.05
+            elif self.entry.font_size < self.entry.texture_size[1] and d > 0 and l > 0.4:
+                self.entry.font_size += self.entry.texture_size[1]*.05
+            else:
+                break
 
     def add_to_story(self):
         self.story.add_widget(Row(lable_text=str(self.entry.text),
@@ -436,6 +503,8 @@ class Usual(BoxLayout):
 
                     if crypto.isint(tmp):
                         tmp = int(tmp)
+                    elif type(tmp) == float:
+                        tmp = round(tmp,10)
                     buffer = str(tmp)
 
                 except Exception as e:
@@ -556,8 +625,9 @@ class RootWidget(BoxLayout):
     def __init__(self):
         super().__init__()
         self.screens = ['Обычный','Эллиптический']
-
-
+        if github_version:
+            if float(github_version[2:]) > float(__version__[2:]):
+                Clock.schedule_once(open_update_window, 3)
 
     def switch_screen(self,instance):
         trans = {   self.screens[0]:'right',

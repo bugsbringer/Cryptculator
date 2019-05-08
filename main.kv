@@ -1,3 +1,35 @@
+#:import Factory kivy.factory.Factory
+<UpdatePopup>:
+  progressbar: progressbar
+  action_button: action_button
+  title: 'Доступно обновление'
+  title_align: 'center'
+  auto_dismiss: False
+  size_hint: .8,.5
+  BoxLayout:
+    orientation: 'vertical'
+    BoxLayout:
+      orientation: 'vertical'
+      Label:
+        text: 'Текущая версия: '+root.cur_version
+      Label:
+        text: 'Новая версия: '+root.git_version
+      ProgressBar:
+        id: progressbar
+        value: 1
+        max: 100
+    BoxLayout:
+      size_hint_y: .25
+      padding: [self.width//50,self.height//50]
+      spacing: self.width//10
+      Button:
+        id: action_button
+        text: 'Скачать'
+        on_release: root.download(self)
+      Button:
+        text: 'Закрыть'
+        on_release: root.dismiss(self)
+
 <Row>:
   size_hint_y: None
   height: label.texture_size[1]
@@ -20,7 +52,6 @@
   allow_copy: True
   use_bubble: True
   multiline: False
-  foreground_color: [0,0,0,.5]
 
 <CustomDropDown>:
   max_height: 0
@@ -58,9 +89,15 @@
   result_input: result_input
   curve_data:curve_data
 
+  on_parent:
+    self.on_create()
+    self.dropdown.dismiss()
+
   CustomDropDown:
     id: dropdown
-    on_select: root.on_dropdown_select(self)
+    on_select:
+      setattr(root.action, 'text', self.data)
+      root.inputs_update()
 
   BoxLayout:
     size_hint_y: .05
@@ -82,8 +119,8 @@
         valign: 'bottom'
       CustomTextInput:
         id:curve_data
-        text: 'p(a,b)'
-        on_focus: root.curve_data_focus(self)
+        hint_text: 'p(a,b)'
+        on_focus: root.inputs_update()
         font_size: self.height//1.75
 
   BoxLayout:
@@ -103,20 +140,20 @@
           spacing: 1
           CustomTextInput:
             id: input1
-            text: 'x,y'
-            on_focus: root.input_focus(self)
+            hint_text: 'x,y'
+            on_focus: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: input2
-            text: 'x,y'
-            on_focus: root.input_focus(self)
+            hint_text: 'x,y'
+            on_focus: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           ReadOnlyTextInput:
             id: result_input
-            text: 'Результат'
-            on_focus: root.result_focus(self)
+            hint_text:'Результат'
+            on_focus: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
         BoxLayout:
@@ -130,6 +167,7 @@
             background_color: .14,.14,.17, 1
             font_size: self.height//2
             on_release:
+              root.inputs_update()
               setattr(root.dropdown,'max_height',self.height//0.75)
               root.dropdown.open(self)
           Button:
@@ -150,6 +188,8 @@
   orientation: 'vertical'
   story:story
   entry: entry
+
+  on_parent: self.on_create()
 
   BoxLayout:
     orientation: 'vertical'
@@ -293,8 +333,8 @@ RootWidget:
     CustomToggleButton:
       text: root.screens[1]
       on_press:
-        root.elip.dropdown.dismiss()
         root.switch_screen(self)
+
   ScreenManager:
     id: manager
     Screen:

@@ -2,3 +2,5 @@
 .sync
 .designer
 __pycache__
+cryptculatorapp.data
+update.py
