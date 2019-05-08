@@ -16,7 +16,8 @@ def factorization(N):
             quantity += 1
         degrees.append(quantity)
 
-    sqrtN = ceil(n**0.5)
+    sqrtN = int(n**.5) + 1
+
     if n > 2:
         for divider in range(3,sqrtN,2):
             if n % divider == 0:
@@ -28,7 +29,7 @@ def factorization(N):
                 degrees.append(quantity)
 
                 if n <= 1: break
-
+        print(divider)
     if n != 1 and n != N:
         dividers.append(n)
         degrees.append(1)
@@ -212,7 +213,7 @@ def isint(n):
             return False
 
 def isprime(n):
-    sqrtN = int(pow(n,0.5)) + 1
+    sqrtN = int(n**.5) + 1
     if n % 2 == 0:
         return False
     for divider in range(3,sqrtN,2):
