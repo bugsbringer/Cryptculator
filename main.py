@@ -4,7 +4,6 @@ github_version = ''
 from kivy.clock import Clock
 from kivy.properties import *
 from kivy.base import runTouchApp
-from kivy.factory import Factory
 from kivy.lang.builder import Builder
 
 from kivy.core.clipboard import Clipboard
