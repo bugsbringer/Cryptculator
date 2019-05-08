@@ -123,6 +123,10 @@ class UpdatePopup(Popup):
     def downloading(self,request, current_size, total_size):
         percent = current_size*100//total_size
         self.progressbar.value = percent
+        self.percent.text = str(percent)+'%'
+
+        self.current_size.text = str(round(current_size/(1024**2),1))+'MB'
+        self.total_size.text = str(round(total_size/(1024**2),1))+'MB'
 
 class CustomTextInput(TextInput):
 
@@ -139,8 +143,12 @@ class CustomTextInput(TextInput):
         data = Clipboard.paste()
         text = self.text
         x = self.cursor[0]
+        l = len(self.text) - x
+        print(self.cursor[0])
         self.text = text[:x]+data+text[x:]
-        setattr(self,'cursor',((len(data)+x),self.cursor[1]))
+        print(self.cursor[0])
+        self.cursor = (len(self.text) - l,self.cursor[1])
+        print(self.cursor[0])
 
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
@@ -152,6 +160,8 @@ class CustomTextInput(TextInput):
 
 class ReadOnlyTextInput(CustomTextInput):
 
+    def paste(self):
+        pass
 
     def insert_text(self, substring, from_undo=False):
         return super(ReadOnlyTextInput, self).insert_text('', from_undo=from_undo)
@@ -339,8 +349,8 @@ class Usual(BoxLayout):
                 break
 
     def add_to_story(self):
-        self.story.add_widget(Row(lable_text=str(self.entry.text),
-                            fs=int(int(self.entry_height)//1.6) ))
+        self.story.add_widget(Row(lable_text= self.entry.text,
+                            fs=self.entry.texture_size[1]//1.6 ))
 
     def add_number(self,instance):
         emptys = ['0', 'Ошибка']

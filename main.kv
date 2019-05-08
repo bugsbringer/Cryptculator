@@ -1,31 +1,77 @@
 <UpdatePopup>:
   progressbar: progressbar
   action_button: action_button
+  current_size: current_size
+  percent: percent
+  total_size: total_size
   title: 'Доступно обновление'
   title_align: 'center'
   auto_dismiss: False
   size_hint: .8,.5
+  separator_color: .5, .5, 1, .5
+  title_size: self.height//20
   BoxLayout:
     orientation: 'vertical'
     BoxLayout:
       orientation: 'vertical'
-      Label:
-        text: 'Текущая версия: '+root.cur_version
-      Label:
-        text: 'Новая версия: '+root.git_version
-      ProgressBar:
-        id: progressbar
+      BoxLayout:
+        size_hint_y: 0.5
+        orientation: 'vertical'
+        Label:
+          text: 'Текущая версия: '+root.cur_version
+          text_size: self.width, self.height
+          font_size: self.height//2.75
+          valign:'center'
+        Label:
+          text: 'Новая версия: '+root.git_version
+          text_size: self.width, self.height
+          font_size: self.height//2.75
+          valign:'center'
+      BoxLayout:
+        size_hint_y: 0.2
+      BoxLayout:
+        size_hint_y: 0.2
+        orientation: 'vertical'
+        ProgressBar:
+          size_hint_y: 0.1
+          background_color: .5, .5, 1, .5
+          id: progressbar
+
+        BoxLayout:
+          size_hint_y: 0.9
+          Label:
+            id: current_size
+            text_size: self.width, self.height
+            font_size: self.height//3
+            valign:'top'
+            halign:'left'
+          Label:
+            id: percent
+            text: '~14MB'
+            text_size: self.width, self.height
+            font_size: self.height//3
+            valign:'top'
+            halign:'center'
+          Label:
+            id: total_size
+            text_size: self.width, self.height
+            font_size: self.height//3
+            valign:'top'
+            halign:'right'
+
     BoxLayout:
-      size_hint_y: .25
-      padding: [self.width//50,self.height//50]
-      spacing: self.width//10
+      size_hint_y: .3
+      padding: self.width//50
+      spacing: self.width//25
+      Button:
+        text: 'Закрыть'
+        on_release: root.dismiss(self)
+        background_color: 1, 1, 1, .1
       Button:
         id: action_button
         text: 'Скачать'
         on_release: root.download(self)
-      Button:
-        text: 'Закрыть'
-        on_release: root.dismiss(self)
+        background_color: .5, .5, 1, .5
 
 <Row>:
   size_hint_y: None

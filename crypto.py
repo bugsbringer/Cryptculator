@@ -17,16 +17,17 @@ def factorization(N):
         degrees.append(quantity)
 
     sqrtN = ceil(n**0.5)
-    for divider in range(3,sqrtN,2):
-        if n % divider == 0:
-            dividers.append(divider)
-            quantity = 0
-            while n % divider == 0:
-                n = n // divider
-                quantity += 1
-            degrees.append(quantity)
+    if n > 2:
+        for divider in range(3,sqrtN,2):
+            if n % divider == 0:
+                dividers.append(divider)
+                quantity = 0
+                while n % divider == 0:
+                    n = n // divider
+                    quantity += 1
+                degrees.append(quantity)
 
-        if n <= 1: break
+                if n <= 1: break
 
     if n != 1 and n != N:
         dividers.append(n)
