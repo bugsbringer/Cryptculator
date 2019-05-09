@@ -25,8 +25,9 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.recycleview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 
+from jnius import autoclass
+from plyer.platforms.android import activity
 from plyer import storagepath
-from plyer import filechooser
 
 #my local modules
 import elliptic
@@ -37,23 +38,20 @@ import tools
 try:
     import android
 except ImportError:
-    android = None
     from kivy.core.window import Window
-    Window.size = (306, 544)
-else:
-    from jnius import autoclass
-    from plyer.platforms.android import activity
+    resolution = 16/9
+    W = 540
+    Window.size = (W, W*resolution)
 
 
-APK_FILE_PATH = storagepath.get_downloads_dir()+'/cryptculatorapp.apk'
-if android:
-    Intent = autoclass('android.content.Intent')
-    Uri = autoclass('android.net.Uri')
+APK_FILE_PATH = storagepath.get_downloads_dir()+'\\cryptculatorapp.apk'
 
-    File = autoclass('java.io.File')
-    apkFile = File(APK_FILE_PATH)
-    apkFile.delete()
+Intent = autoclass('android.content.Intent')
+Uri = autoclass('android.net.Uri')
 
+File = autoclass('java.io.File')
+apkFile = File(APK_FILE_PATH)
+apkFile.delete()
 
 
 store = DictStore("cryptculatorapp.data")
@@ -75,6 +73,7 @@ def open_update_window(event):
 class UpdatePopup(Popup):
     cur_version = StringProperty("")
     git_version = StringProperty("")
+    apk_file_path = APK_FILE_PATH
 
 
     def download(self, instance):
@@ -86,23 +85,23 @@ class UpdatePopup(Popup):
         self.request = UrlRequest(url,on_success=self.success,
                                 on_failure=self.fail,on_redirect=self.redirect,
                                 on_progress=self.downloading, verify=False,
-                                file_path=APK_FILE_PATH, chunk_size=1024*1024)
+                                file_path=APK_FILE_PATH, chunk_size=1024*512)
 
     def setup_app(self, instance):
         instance.disabled = True
         instance.text = 'Готово'
-        if android:
-            Intent = autoclass('android.content.Intent')
-            Uri = autoclass('android.net.Uri')
 
-            File = autoclass('java.io.File')
-            apkFile = File(self.file_path)
+        Intent = autoclass('android.content.Intent')
+        Uri = autoclass('android.net.Uri')
 
-            intent = Intent()
-            intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
-            intent.setData(Uri.fromFile(apkFile))
+        File = autoclass('java.io.File')
+        apkFile = File(self.file_path)
 
-            activity.startActivity(intent)
+        intent = Intent()
+        intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
+        intent.setData(Uri.fromFile(apkFile))
+
+        activity.startActivity(intent)
 
         self.dismiss()
 
@@ -152,10 +151,8 @@ class CustomTextInput(TextInput):
 
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
-        if substring in pat:
-            s = substring
-        else:
-            s = ''
+        if not substring in pat:
+            substring = ''
         return super(CustomTextInput, self).insert_text(s, from_undo=from_undo)
 
 class ReadOnlyTextInput(CustomTextInput):
