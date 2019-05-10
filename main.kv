@@ -1,13 +1,15 @@
+#:import sp plyer.storagepath
 <UpdatePopup>:
   progressbar: progressbar
   action_button: action_button
   current_size: current_size
   percent: percent
   total_size: total_size
+  info:info
   title: 'Доступно обновление'
   title_align: 'center'
   auto_dismiss: False
-  size_hint: .8,.5
+  size_hint: .95,.6
   separator_color: .5, .5, 1, .5
   title_size: self.height//20
   BoxLayout:
@@ -15,7 +17,7 @@
     BoxLayout:
       orientation: 'vertical'
       BoxLayout:
-        size_hint_y: 0.5
+        size_hint_y: 0.4
         orientation: 'vertical'
         Label:
           text: 'Текущая версия: '+root.cur_version
@@ -28,9 +30,10 @@
           font_size: self.height//2.75
           valign:'center'
       BoxLayout:
-        size_hint_y: 0.2
+        size_hint_y: 0.3
         TextInput:
-          text: root.apk_file_path
+          id: info
+          text: 'Путь загрузки:\t'+sp.get_downloads_dir()
           font_size: root.title_size
       BoxLayout:
         size_hint_y: 0.2
@@ -63,7 +66,7 @@
             halign:'right'
 
     BoxLayout:
-      size_hint_y: .3
+      size_hint_y: .25
       padding: self.width//50
       spacing: self.width//25
       Button:
@@ -73,7 +76,7 @@
       Button:
         id: action_button
         text: 'Скачать'
-        on_release: root.download(self)
+        on_release: root.download()
         background_color: .5, .5, 1, .5
 
 <Row>:
@@ -128,17 +131,15 @@
 
 <Elliptic>:
   orientation: 'vertical'
+  curve_data:curve_data
   action: action
   dropdown: dropdown
   input1: input1
   input2: input2
   result_input: result_input
-  curve_data:curve_data
-
   on_parent:
     self.on_create()
     self.dropdown.dismiss()
-    root.inputs_update()
 
   CustomDropDown:
     id: dropdown
@@ -167,7 +168,7 @@
       CustomTextInput:
         id:curve_data
         hint_text: 'p(a,b)'
-        on_focus: root.inputs_update()
+        on_text: root.inputs_update()
         font_size: self.height//1.75
 
   BoxLayout:
@@ -188,19 +189,19 @@
           CustomTextInput:
             id: input1
             hint_text: 'x,y'
-            on_focus: root.inputs_update()
+            on_text: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: input2
             hint_text: 'x,y'
-            on_focus: root.inputs_update()
+            on_text: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           ReadOnlyTextInput:
             id: result_input
             hint_text:'Результат'
-            on_focus: root.inputs_update()
+
             text_size: self.width, self.height
             font_size: self.height//2
         BoxLayout:
@@ -214,14 +215,11 @@
             background_color: .14,.14,.17, 1
             font_size: self.height//2
             on_release:
-              root.inputs_update()
               setattr(root.dropdown,'max_height',self.height//0.75)
               root.dropdown.open(self)
           Button:
             text: '='
-            on_press:
-              root.inputs_update()
-              root.result()
+            on_press: root.result()
             background_color: 1, 0.2, 0.1, .9
 
   BoxLayout:
@@ -255,7 +253,7 @@
     Label:
       id: entry
       text: '0'
-      size_hint_y: 0.35
+      size_hint_y: 0.4
       text_size: self.width, self.height
       font_size: self.height
       max_lines:1

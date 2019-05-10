@@ -25,10 +25,6 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.recycleview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
 
-from jnius import autoclass
-from plyer.platforms.android import activity
-from plyer import storagepath
-
 #my local modules
 import elliptic
 import crypto
@@ -38,20 +34,27 @@ import tools
 try:
     import android
 except ImportError:
+    android = None
     from kivy.core.window import Window
     resolution = 16/9
-    W = 540
+    W = 306
     Window.size = (W, W*resolution)
+
+from plyer import storagepath
+if android:
+    from jnius import autoclass
+    from plyer.platforms.android import activity
 
 
 APK_FILE_PATH = storagepath.get_downloads_dir()+'\\cryptculatorapp.apk'
 
-Intent = autoclass('android.content.Intent')
-Uri = autoclass('android.net.Uri')
+if android:
+    Intent = autoclass('android.content.Intent')
+    Uri = autoclass('android.net.Uri')
 
-File = autoclass('java.io.File')
-apkFile = File(APK_FILE_PATH)
-apkFile.delete()
+    File = autoclass('java.io.File')
+    apkFile = File(APK_FILE_PATH)
+    apkFile.delete()
 
 
 store = DictStore("cryptculatorapp.data")
@@ -74,50 +77,55 @@ class UpdatePopup(Popup):
     cur_version = StringProperty("")
     git_version = StringProperty("")
     apk_file_path = APK_FILE_PATH
+    Downloaded = False
 
 
-    def download(self, instance):
-        instance.disabled = True
-        instance.text = 'Загрузка'
+    def download(self):
+        if not self.Downloaded:
+            self.action_button.disabled = True
+            self.action_button.text = 'Загрузка'
 
-        url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
-
-        self.request = UrlRequest(url,on_success=self.success,
-                                on_failure=self.fail,on_redirect=self.redirect,
-                                on_progress=self.downloading, verify=False,
-                                file_path=APK_FILE_PATH, chunk_size=1024*512)
+            url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
+            self.info.text += '\nЗагрузка...'
+            self.request = UrlRequest(url,on_success=self.success,
+                                    on_failure=self.fail,on_redirect=self.redirect,
+                                    on_progress=self.downloading, verify=False,
+                                    file_path=self.apk_file_path, chunk_size=1024*512)
 
     def setup_app(self, instance):
+        self.info.text += '\nУстановка'
         instance.disabled = True
         instance.text = 'Готово'
+        if android:
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
 
-        Intent = autoclass('android.content.Intent')
-        Uri = autoclass('android.net.Uri')
+            File = autoclass('java.io.File')
+            apkFile = File(self.file_path)
 
-        File = autoclass('java.io.File')
-        apkFile = File(self.file_path)
+            intent = Intent()
+            intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
+            intent.setData(Uri.fromFile(apkFile))
 
-        intent = Intent()
-        intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
-        intent.setData(Uri.fromFile(apkFile))
+            activity.startActivity(intent)
 
-        activity.startActivity(intent)
-
-        self.dismiss()
+        #self.dismiss()
 
     def success(self, request, result):
-        self.action_button.disabled = False
+        self.Downloaded = True
+        self.info.text += '\nЗагрузка завершена.'
         self.action_button.text = 'Установить'
         self.action_button.bind(on_release=self.setup_app)
+        self.action_button.disabled = False
 
     def redirect(self, request, result):
-        self.action_button.text = 'redirect'
+        self.info.text += '\nRedirect: '+str(result)
 
     def fail(self, request, result):
-        self.action_button.text = 'fail'
+        self.info.text += '\nFail: '+str(result)
 
     def error(self, request, error):
-        self.action_button.text = 'error'
+        self.info.text += '\nError: '+str(result)
 
     def downloading(self,request, current_size, total_size):
         percent = current_size*100//total_size
@@ -128,7 +136,11 @@ class UpdatePopup(Popup):
         self.total_size.text = str(round(total_size/(1024**2),1))+'MB'
 
 class CustomTextInput(TextInput):
+    name = StringProperty('')
 
+
+    def on_text(self, instance, text):
+        store.put(self.name,value=text)
 
     def copy(self, data=''):
          Clipboard.copy(self.selection_text)
@@ -143,17 +155,14 @@ class CustomTextInput(TextInput):
         text = self.text
         x = self.cursor[0]
         l = len(self.text) - x
-        print(self.cursor[0])
         self.text = text[:x]+data+text[x:]
-        print(self.cursor[0])
         self.cursor = (len(self.text) - l,self.cursor[1])
-        print(self.cursor[0])
 
     def insert_text(self, substring, from_undo=False):
         pat = '0123456789(),-'
         if not substring in pat:
             substring = ''
-        return super(CustomTextInput, self).insert_text(s, from_undo=from_undo)
+        return super(CustomTextInput, self).insert_text(substring, from_undo=from_undo)
 
 class ReadOnlyTextInput(CustomTextInput):
 
@@ -224,14 +233,15 @@ class Elliptic(BoxLayout):
     actions = ['+','-','×']
 
     def on_create(self):
+        if store.exists('action'):
+            self.ids['action'].text = store.get('action')['value']
         for id in self.ids:
+            self.ids[id].name = id
             if store.exists(id):
                 self.ids[id].text = store.get(id)['value']
+        self.inputs_update()
 
-    def inputs_update(self):
-        store.put('curve_data',value=self.curve_data.text)
-        store.put('input1',value=self.input1.text)
-        store.put('input2',value=self.input2.text)
+    def inputs_update(self,a=None,b=None):
         store.put('action',value=self.action.text)
 
         self.input1.hint_text = 'x,y'
@@ -248,15 +258,18 @@ class Elliptic(BoxLayout):
                     self.input2.hint_text = 'n'
         else:
             self.input2.hint_text = 'x,y'
+        self.result()
 
     def result(self):
 
 
         def parse_curve_data():
-
             data = tools.junk(self.curve_data.text)
 
-            if len(data) < 5 or len(data) > 6:
+            if len(data) != 6:
+                return False
+
+            if data[1] != '(' or data[3] != ',' or data[5] !=')':
                 return False
 
             for i in [0,2,4]:
@@ -306,11 +319,16 @@ class Elliptic(BoxLayout):
             else:
                 n = in1
                 P = in2
-
+            if len(P) != 2:
+                self.result_input.hint_text = 'Ошибка'
+                return
             result = E.mult(P,n)
 
         elif action == self.actions[0] or action == self.actions[1]:
             if type(in1) == int or type(in2) == int:
+                self.result_input.hint_text = 'Ошибка'
+                return
+            if len(in1) != 2 or len(in2) != 2:
                 self.result_input.hint_text = 'Ошибка'
                 return
             P = in1
@@ -326,6 +344,7 @@ class Usual(BoxLayout):
     entry_status = '0'
     operations = ['+','-','÷','×',',','^','mod ']
 
+
     def updateEntry(self):
         if self.entry_status == '' or self.entry_status == '()':
             self.entry_status = '0'
@@ -338,16 +357,19 @@ class Usual(BoxLayout):
         l = self.entry.texture_size[0]/(cur_len*self.entry.texture_size[1])
 
         for i in range(abs(d)):
-            if self.entry.font_size > self.entry.texture_size[1]/1.4 and d < 0 and l < 0.7:
+            if self.entry.font_size > self.entry.texture_size[1]/1.6 and d < 0 and l < 0.7:
                 self.entry.font_size -= self.entry.texture_size[1]*.05
             elif self.entry.font_size < self.entry.texture_size[1] and d > 0 and l > 0.4:
                 self.entry.font_size += self.entry.texture_size[1]*.05
+                if self.entry.font_size > self.entry.texture_size[1]:
+                    self.entry.font_size = self.entry.texture_size[1]
+                    break
             else:
                 break
 
     def add_to_story(self):
         self.story.add_widget(Row(lable_text= self.entry.text,
-                            fs=self.entry.texture_size[1]//1.6 ))
+                                    fs=self.entry.texture_size[1]//1.6 ))
 
     def add_number(self,instance):
         emptys = ['0', 'Ошибка']

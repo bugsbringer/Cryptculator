@@ -29,7 +29,6 @@ def factorization(N):
                 degrees.append(quantity)
 
                 if n <= 1: break
-        print(divider)
     if n != 1 and n != N:
         dividers.append(n)
         degrees.append(1)
