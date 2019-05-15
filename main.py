@@ -1,9 +1,7 @@
-__version__ = '0.3.3'
-github_version = ''
-
+__version__ = '0.3.4'
+from kivy.app import App
 from kivy.clock import Clock
 from kivy.properties import *
-from kivy.base import runTouchApp
 from kivy.lang.builder import Builder
 
 from kivy.core.clipboard import Clipboard
@@ -24,7 +22,6 @@ from kivy.uix.popup import Popup
 from kivy.uix.dropdown import DropDown
 from kivy.uix.recycleview import ScrollView
 from kivy.uix.screenmanager import ScreenManager, Screen
-
 #my local modules
 import elliptic
 import crypto
@@ -37,7 +34,7 @@ except ImportError:
     android = None
     from kivy.core.window import Window
     resolution = 16/9
-    W = 306
+    W = 302
     Window.size = (W, W*resolution)
 
 from plyer import storagepath
@@ -45,95 +42,8 @@ if android:
     from jnius import autoclass
     from plyer.platforms.android import activity
 
-
-APK_FILE_PATH = storagepath.get_downloads_dir()+'\\cryptculatorapp.apk'
-
-if android:
-    Intent = autoclass('android.content.Intent')
-    Uri = autoclass('android.net.Uri')
-
-    File = autoclass('java.io.File')
-    apkFile = File(APK_FILE_PATH)
-    apkFile.delete()
-
-
 store = DictStore("cryptculatorapp.data")
-
-
-def check_version(request, result):
-    global github_version
-    github_version = str(result)
-
-version_url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/version.txt"
-ver_request = UrlRequest(version_url, verify=False, on_success=check_version )
-
-def open_update_window(event):
-    if github_version != '':
-        if float(github_version[2:]) > float(__version__[2:]):
-            UpdatePopup(cur_version = __version__,git_version = github_version).open()
-
-
-class UpdatePopup(Popup):
-    cur_version = StringProperty("")
-    git_version = StringProperty("")
-    apk_file_path = APK_FILE_PATH
-    Downloaded = False
-
-
-    def download(self):
-        if not self.Downloaded:
-            self.action_button.disabled = True
-            self.action_button.text = 'Загрузка'
-
-            url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
-            self.info.text += '\nЗагрузка...'
-            self.request = UrlRequest(url,on_success=self.success,
-                                    on_failure=self.fail,on_redirect=self.redirect,
-                                    on_progress=self.downloading, verify=False,
-                                    file_path=self.apk_file_path, chunk_size=1024*512)
-
-    def setup_app(self, instance):
-        self.info.text += '\nУстановка'
-        instance.disabled = True
-        instance.text = 'Готово'
-        if android:
-            Intent = autoclass('android.content.Intent')
-            Uri = autoclass('android.net.Uri')
-
-            File = autoclass('java.io.File')
-            apkFile = File(self.file_path)
-
-            intent = Intent()
-            intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
-            intent.setData(Uri.fromFile(apkFile))
-
-            activity.startActivity(intent)
-
-        #self.dismiss()
-
-    def success(self, request, result):
-        self.Downloaded = True
-        self.info.text += '\nЗагрузка завершена.'
-        self.action_button.text = 'Установить'
-        self.action_button.bind(on_release=self.setup_app)
-        self.action_button.disabled = False
-
-    def redirect(self, request, result):
-        self.info.text += '\nRedirect: '+str(result)
-
-    def fail(self, request, result):
-        self.info.text += '\nFail: '+str(result)
-
-    def error(self, request, error):
-        self.info.text += '\nError: '+str(result)
-
-    def downloading(self,request, current_size, total_size):
-        percent = current_size*100//total_size
-        self.progressbar.value = percent
-        self.percent.text = str(percent)+'%'
-
-        self.current_size.text = str(round(current_size/(1024**2),1))+'MB'
-        self.total_size.text = str(round(total_size/(1024**2),1))+'MB'
+APK_FILE_PATH = storagepath.get_downloads_dir()+'/cryptculatorapp.apk'
 
 class CustomTextInput(TextInput):
     name = StringProperty('')
@@ -147,7 +57,6 @@ class CustomTextInput(TextInput):
 
     def cut(self):
         Clipboard.copy(self.selection_text)
-        data = self.selection_text
         self.delete_selection()
 
     def paste(self):
@@ -166,8 +75,14 @@ class CustomTextInput(TextInput):
 
 class ReadOnlyTextInput(CustomTextInput):
 
+    def delete_selection(self):
+        return
+
+    def do_backspace(self):
+        return
+
     def paste(self):
-        pass
+        return
 
     def insert_text(self, substring, from_undo=False):
         return super(ReadOnlyTextInput, self).insert_text('', from_undo=from_undo)
@@ -199,16 +114,14 @@ class CustomToggleButton(ToggleButton):
             self.color = 1,1,1,1
 
 class CustomButton(Button):
-    __events__ = ('on_long_press', )
+    __events__ = ('on_long_press', 'on_short_press')
     long_press_time = NumericProperty(1)
-
+    is_long_pressed = False
     functions = ListProperty(['','',''])
     cur_func = NumericProperty(0)
     funcs_colors = ListProperty([(.5,.15,.6,1),
                                 (.75, .16, .23, 1),
                                 (.34,.83,.56,1),])
-
-
 
     def on_state(self, instance, value):
         if value == 'down':
@@ -217,10 +130,24 @@ class CustomButton(Button):
         else:
             self._clockev.cancel()
 
+    def on_release(self):
+        if self.is_long_pressed:
+            self.is_long_pressed = False
+        else:
+            self._do_short_press()
+
+
+    def _do_short_press(self):
+        self.dispatch('on_short_press')
+
+    def on_short_press(self, *largs):
+        pass
+
     def _do_long_press(self, dt):
         self.dispatch('on_long_press')
 
     def on_long_press(self, *largs):
+        self.is_long_pressed = True
         count = len(self.functions) - self.functions.count('')
         self.cur_func = ((self.cur_func + 1) % count)
         pass
@@ -258,7 +185,14 @@ class Elliptic(BoxLayout):
                     self.input2.hint_text = 'n'
         else:
             self.input2.hint_text = 'x,y'
-        self.result()
+
+
+        self.result_input.text = ''
+        if self.input1.text and self.input2.text and self.curve_data.text:
+            self.result()
+        else:
+            self.result_input.hint_text_color = [.5, .5, .5, 1]
+            self.result_input.hint_text = 'Результат'
 
     def result(self):
 
@@ -269,7 +203,7 @@ class Elliptic(BoxLayout):
             if len(data) != 6:
                 return False
 
-            if data[1] != '(' or data[3] != ',' or data[5] !=')':
+            if (data[1], data[3], data[5]) != ('(', ',', ')'):
                 return False
 
             for i in [0,2,4]:
@@ -284,14 +218,15 @@ class Elliptic(BoxLayout):
 
             return (a,b),p
 
-        self.result_input.text = ''
-        self.result_input.hint_text_color = [1,0,0,.5]
         tmp_parse =  parse_curve_data()
-        if type(tmp_parse) != tuple:
+
+        self.result_input.hint_text_color = [1,0,0,.5]
+
+        if not tmp_parse:
             self.result_input.hint_text = 'Ошибка'
             return
-        else:
-            ab,p = tmp_parse
+
+        ab,p = tmp_parse
 
         try:
             E = elliptic.EllipticCurve(ab,p)
@@ -303,11 +238,7 @@ class Elliptic(BoxLayout):
 
         action = self.action.text
 
-        if type(in1) != tuple and type(in2) != tuple:
-            self.result_input.hint_text = 'Ошибка'
-            return
-
-        elif action == self.actions[2]:
+        if action == self.actions[2]:
             if type(in1) == tuple and type(in2) == tuple:
                 self.result_input.hint_text = 'Ошибка'
                 return
@@ -319,22 +250,25 @@ class Elliptic(BoxLayout):
             else:
                 n = in1
                 P = in2
+
             if len(P) != 2:
                 self.result_input.hint_text = 'Ошибка'
                 return
+
             result = E.mult(P,n)
 
         elif action == self.actions[0] or action == self.actions[1]:
-            if type(in1) == int or type(in2) == int:
+            if (type(in1) == int or type(in2) == int
+                        or len(in1) != 2 or len(in2) != 2):
                 self.result_input.hint_text = 'Ошибка'
                 return
-            if len(in1) != 2 or len(in2) != 2:
-                self.result_input.hint_text = 'Ошибка'
-                return
+
             P = in1
             Q = in2
+
             if action == self.actions[0]:
                 result = E.sum(P,Q)
+
             else:
                 result = E.sub(P,Q)
 
@@ -344,32 +278,25 @@ class Usual(BoxLayout):
     entry_status = '0'
     operations = ['+','-','÷','×',',','^','mod ']
 
-
     def updateEntry(self):
         if self.entry_status == '' or self.entry_status == '()':
             self.entry_status = '0'
 
-        old_len = len(self.entry.text)
         self.entry.text = self.entry_status
-        cur_len = len(self.entry.text)
 
-        d = old_len - cur_len
-        l = self.entry.texture_size[0]/(cur_len*self.entry.texture_size[1])
+        self.entry.font_size = self.entry.height
+        lenght = len(self.entry.text)
 
-        for i in range(abs(d)):
-            if self.entry.font_size > self.entry.texture_size[1]/1.6 and d < 0 and l < 0.7:
-                self.entry.font_size -= self.entry.texture_size[1]*.05
-            elif self.entry.font_size < self.entry.texture_size[1] and d > 0 and l > 0.4:
-                self.entry.font_size += self.entry.texture_size[1]*.05
-                if self.entry.font_size > self.entry.texture_size[1]:
-                    self.entry.font_size = self.entry.texture_size[1]
+        if lenght > 10:
+            for i in range(lenght-10):
+                self.entry.font_size -= self.entry.height*.05
+                if self.entry.font_size < self.entry.height/1.5:
+                    self.entry.font_size = self.entry.height/1.5
                     break
-            else:
-                break
 
     def add_to_story(self):
         self.story.add_widget(Row(lable_text= self.entry.text,
-                                    fs=self.entry.texture_size[1]//1.6 ))
+                                    fs=self.entry.height//1.7 ))
 
     def add_number(self,instance):
         emptys = ['0', 'Ошибка']
@@ -384,7 +311,7 @@ class Usual(BoxLayout):
 
         lngh = len(self.entry_status)
         if instance.text == '.':
-            if len(self.entry_status) == 0:
+            if lngh == 0:
                 buffer = '0.'
             else:
                 if self.entry_status[lngh-1].isdigit():
@@ -393,8 +320,9 @@ class Usual(BoxLayout):
                             if self.entry_status[i] == '.':
                                 buffer = ''
                             break
-                else:
-                    if self.entry_status[lngh-1] != '.':
+                elif self.entry_status[lngh-1] == '.':
+                    buffer = ''
+                elif self.entry_status[lngh-1] != '.':
                         buffer = '0.'
 
         elif buffer in functions:
@@ -629,9 +557,6 @@ class Usual(BoxLayout):
         self.entry_status += buffer
         self.updateEntry()
 
-    def switch_key(self,instance):
-        self.delete(None)
-
     def delete(self,instance):
         lngh = len(self.entry_status)
         exeptions = ['-¹mod ',' mod ','НОД(','НОК(','φ(','pow(','F(']
@@ -654,17 +579,219 @@ class Usual(BoxLayout):
             self.entry_status = '0'
             self.updateEntry()
 
+    def scroll_sizer(self):
+        if self.entry.size[0] > self.story.size[0]:
+            setattr(self.entry_scroller,'width',self.story.size[0])
+        else:
+            setattr(self.entry_scroller,'width',self.entry.size[0])
+
+class UpdatePopup(Popup):
+    cur_version = StringProperty("")
+    git_version = StringProperty("")
+    Downloaded = False
+
+    def on_parent(self,instance,value):
+        self.info.text = storagepath.get_downloads_dir()
+
+    def download(self):
+        if not self.Downloaded:
+            self.action_button.disabled = True
+            self.action_button.text = 'Загрузка'
+
+            url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/cryptculatorapp.apk"
+            self.info.text += '\nЗагрузка...'
+            self.request = UrlRequest(url,on_success=self.success,debug=True,
+                                    on_failure=self.fail,on_redirect=self.redirect,
+                                    on_progress=self.downloading, verify=False,
+                                    file_path=APK_FILE_PATH, chunk_size=1024*512)
+
+    def setup_app(self, instance):
+        self.info.text += '\nУстановка'
+        instance.disabled = True
+        instance.text = 'Готово'
+        if android:
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+
+            File = autoclass('java.io.File')
+            apkFile = File(APK_FILE_PATH)
+
+            intent = Intent()
+            intent.setAction(Intent.ACTION_INSTALL_PACKAGE)
+            intent.setData(Uri.fromFile(apkFile))
+
+            activity.startActivity(intent)
+
+    def success(self, request, result):
+        self.Downloaded = True
+        self.info.text += '\nЗагрузка завершена.'
+        self.action_button.text = 'Установить'
+        self.action_button.bind(on_release=self.setup_app)
+        self.action_button.disabled = False
+
+    def redirect(self, request, result):
+        self.info.text += '\nRedirect: '+str(result)
+
+    def fail(self, request, result):
+        self.info.text += '\nFail: '+str(result)
+
+    def error(self, request, error):
+        self.info.text += '\nError: '+str(result)
+
+    def downloading(self,request, current_size, total_size):
+        percent = current_size*100//total_size
+        self.progressbar.value = percent
+        self.percent.text = str(percent)+'%'
+
+        self.current_size.text = str(round(current_size/(1024**2),1))+'MB'
+        self.total_size.text = str(round(total_size/(1024**2),1))+'MB'
+
+class LastUpdateInfoPopup(Popup):
+    information = """[b]Окно информации:[/b]
+    [i]Это окно[/i]
+    [i]Окно справки[/i]
+[b]Малозаметные[/b] [i]улучшения[/i]
+[i]Доработана[/i] [b]система обновления[/b]
+
+[b]Калькуляторы:[/b]
+  [b]Обычный:[/b]
+    - [i]Доработаны[/i] [b]переключаемые[/b] кнопки
+    - [b]Скролируемое[/b] [i]поле ввода[/i]
+    - [i]Улучшено[/i] скалирование
+            шрифта [i]поля ввода[/i]
+
+  [b]Эллиптический:[/b]
+    - Расчет при вводе
+    - [i]Улучшен[/i] [b]алгоритм умножения[/b]
+    """
+
+    def on_open(self):
+        store.put('info',value=True)
+
+class AboutPopup(Popup):
+    information = """[b]CryptCulator[/b] – учебная программа
+для вычислений в области криптологии.
+[b]Калькуляторы:[/b]
+
+[b]Обычный:[/b]
+  [b]Функции[/b]
+    Кнопки с [b]цветовым индикатором[/b], при
+    [b]продолжительном[/b] нажатии [i]переключаются[/i]
+    к [u]альтернативной функции[/u] :
+
+        [b][color=#86319E]« φ(n) »[/color] / [color=#C23445]« F(N) »[/color][/b] –
+            [color=#86319E]Функция Эйлера[/color]
+            [color=#C23445]Факторизация числа[/color]
+
+        [b][color=#86319E]« НОД »[/color] / [color=#C23445]« НОК »[/color][/b] –
+            [color=#86319E]Наибольший общий делитель[/color]
+            [color=#C23445]Наименьшее общее кратное[/color]
+            (обе функции принимают 2 и больше
+            параметров, НОД выдает массив
+                            попарных результатов)
+
+    [b]« ^ »[/b] - Возведение в степень
+
+    [b]« a^b mod p »[/b] - Бинарный алгоритм
+            возведения в степень по модулю
+
+    («а^(1/x)» - [u]корень[/u] степени «x» из числа «а»)
+
+    [b]« x-¹ »[/b] – Нахождение обратного
+                элемента по модулю
+
+[b]Эллиптической криптографии:[/b]
+    [b]p(a, b)[/b] – параметры эллиптической кривой
+
+    [b]х,у[/b] – координаты точек
+    [b]n[/b] – множитель (при умножении)
+
+    [b]Функции[/b]
+        [i]Вычитание, сложение, умножение[/i]
+ """
+
+class SettingsPopup(Popup):
+    current_version = __version__
+
+    def check_for_update(self):
+        def check_version( request, result):
+            self.git_version = str(result)
+
+        def open_update_window(event):
+            if self.git_version:
+                if float(self.git_version[2:]) > float(__version__[2:]):
+                    UpdatePopup(cur_version = __version__,
+                                git_version = self.git_version).open()
+
+        version_url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/version.txt"
+        ver_request = UrlRequest(version_url, verify=False,
+                                    on_success=check_version )
+
+        Clock.schedule_once(open_update_window, 2)
+
+    def open_lastupdinfo_window(self):
+        LastUpdateInfoPopup().open()
+
+    def open_about_window(self):
+         AboutPopup().open()
+
 class RootWidget(BoxLayout):
     def __init__(self):
         super().__init__()
+        self.git_version = ''
+        self.check_for_update(time=5)
+        self.delete_old_apkfile()
+        if not store.exists('info') or store.get('info')['value'] == False:
+            Clock.schedule_once(self.open_lastupdinfo_window, 2)
         self.screens = ['Обычный','Эллиптический']
-        Clock.schedule_once(open_update_window, 5)
+
+    def open_lastupdinfo_window(self, event):
+        InfPop = LastUpdateInfoPopup()
+        InfPop.bind(on_dismiss=self.check_for_update)
+        InfPop.open()
+
+    def open_settings_popup(self):
+        SettingsPopup().open()
+
+    def delete_old_apkfile(self):
+        if android:
+            Intent = autoclass('android.content.Intent')
+            Uri = autoclass('android.net.Uri')
+
+            File = autoclass('java.io.File')
+            apkFile = File(APK_FILE_PATH)
+            apkFile.delete()
+
+    def check_for_update(self, event = None, time = 1):
+        def check_version( request, result):
+            self.git_version = str(result)
+
+        def open_update_window(event):
+            if self.git_version:
+                if float(self.git_version[2:]) > float(__version__[2:]):
+                    UpdatePopup(cur_version = __version__,
+                                git_version = self.git_version).open()
+
+        if not self.git_version:
+            version_url = "https://raw.githubusercontent.com/bugsbringer/Cryptculator-actual-APK/master/version.txt"
+            ver_request = UrlRequest(version_url, verify=False,
+                                        on_success=check_version )
+        if store.exists('info') and store.get('info')['value'] == True:
+            Clock.schedule_once(open_update_window, time)
 
     def switch_screen(self,instance):
-        trans = {   self.screens[0]:'right',
-                    self.screens[1]:'left'  }
-        self.manager.transition.direction = trans[instance.text]
-        self.manager.current = instance.text
+            trans = {   self.screens[0]:'right',
+                        self.screens[1]:'left'  }
+            self.manager.transition.direction = trans[instance.text]
+            self.manager.current = instance.text
+
+class CryptculatorApp(App):
+    def build(self):
+        return Builder.load_string(open("main.kv", encoding='utf-8').read())
+
+    def on_pause(self):
+        return True
+
 
 if __name__ == '__main__':
-    runTouchApp(Builder.load_string(open("main.kv", encoding='utf-8').read()))
+    CryptculatorApp().run()
