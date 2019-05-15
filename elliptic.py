@@ -114,10 +114,12 @@ class EllipticCurve:
         for i in range(powers[0]):
             result = self.double(result)
 
+        prev = (powers[0],result)
         for power in powers[1:]:
-            buffer = P
-            for i in range(power):
+            buffer = prev[1]
+            for i in range(power - prev[0]):
                 buffer = self.double(buffer)
+            prev = (power,buffer)
             result = self.sum(result,buffer)
 
         return result

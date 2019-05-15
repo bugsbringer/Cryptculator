@@ -4,31 +4,39 @@
   current_size: current_size
   percent: percent
   total_size: total_size
+  info:info
+
   title: 'Доступно обновление'
   title_align: 'center'
   auto_dismiss: False
-  size_hint: .8,.5
+  size_hint: .95,.6
   separator_color: .5, .5, 1, .5
-  title_size: self.height//20
+  title_size: self.height//19
+
   BoxLayout:
     orientation: 'vertical'
     BoxLayout:
       orientation: 'vertical'
       BoxLayout:
-        size_hint_y: 0.5
+        size_hint_y: 0.8
         orientation: 'vertical'
         Label:
-          text: 'Текущая версия: '+root.cur_version
+          size_hint_y: 0.25
+          text: 'Текущая версия: ' + root.cur_version
           text_size: self.width, self.height
-          font_size: self.height//2.75
-          valign:'center'
+          font_size: self.height//2.5
+          halign:'left'
         Label:
-          text: 'Новая версия: '+root.git_version
+          size_hint_y: 0.25
+          text: 'Новая версия: ' + root.git_version
           text_size: self.width, self.height
-          font_size: self.height//2.75
-          valign:'center'
-      BoxLayout:
-        size_hint_y: 0.2
+          font_size: self.height//2.5
+          halign:'left'
+        ReadOnlyTextInput:
+          size_hint_y: 0.5
+          id: info
+          multiline: True
+          font_size: root.title_size//1.1
       BoxLayout:
         size_hint_y: 0.2
         orientation: 'vertical'
@@ -60,7 +68,7 @@
             halign:'right'
 
     BoxLayout:
-      size_hint_y: .3
+      size_hint_y: .25
       padding: self.width//50
       spacing: self.width//25
       Button:
@@ -70,8 +78,125 @@
       Button:
         id: action_button
         text: 'Скачать'
-        on_release: root.download(self)
+        on_release: root.download()
         background_color: .5, .5, 1, .5
+
+<LastUpdateInfoPopup>:
+  title: 'Что нового:'
+  title_align: 'center'
+  auto_dismiss: False
+  size_hint: 1,.75
+  separator_color: .5, .5, 1, .5
+  title_size: self.height//25
+
+  BoxLayout:
+    orientation: 'vertical'
+    spacing: 15
+    BoxLayout:
+      size_hint: 1,.88
+      padding: 0,10
+      ScrollView:
+        Label:
+          markup: True
+          text: root.information
+          font_size: root.title_size//1.2
+          size_hint: None, None
+          size: self.texture_size
+    AnchorLayout:
+      size_hint: 1,.12
+      anchor_x: 'center'
+      anchor_y: 'center'
+      Button:
+        text: 'Окей'
+        size_hint_x: .5
+        on_release: root.dismiss(self)
+        background_color: .5, .5, 1, .5
+
+<AboutPopup>:
+  title: 'О приложении'
+  title_align: 'center'
+  auto_dismiss: False
+  size_hint: 1, .85
+  separator_color: .5, .5, 1, .5
+  title_size: self.height//25
+
+  BoxLayout:
+    orientation: 'vertical'
+    spacing: 15
+    BoxLayout:
+      size_hint: .98,.88
+      padding: 0,10
+      ScrollView:
+        Label:
+          markup: True
+          text: root.information
+          font_size: root.title_size//1.5
+          size_hint: None, None
+          size: self.texture_size
+    AnchorLayout:
+      size_hint: 1,.1
+      anchor_x: 'center'
+      anchor_y: 'center'
+      Button:
+        text: 'Окей'
+        size_hint_x: .4
+        on_release: root.dismiss(self)
+        background_color: .5, .5, 1, .5
+
+<SettingsPopup>:
+  title: 'Информация'
+  title_align: 'center'
+  auto_dismiss: False
+  size_hint: .9,.6
+  separator_color: .5, .5, 1, .5
+  title_size: self.height//20
+  BoxLayout:
+    orientation: 'vertical'
+    BoxLayout:
+      orientation: 'vertical'
+      spacing: self.height//10
+      padding: self.width//25,self.height//10
+      AnchorLayout:
+        size_hint: 1,.25
+        anchor_x: 'center'
+        anchor_y: 'center'
+        Button:
+          text: 'Что нового'
+          size_hint_x: .75
+          background_color: .34,.83,.56,1
+          on_press: root.open_lastupdinfo_window()
+      BoxLayout:
+        size_hint_y: .25
+        Label:
+          text: 'Текущая версия: ' + root.current_version
+          text_size: self.width, self.height
+          font_size: self.height//3
+          halign:'left'
+          valign:'center'
+        Button:
+          text: 'Проверить'
+          background_color: .5, .5, 1, .5
+          on_press: root.check_for_update()
+      BoxLayout:
+        size_hint_y: .25
+        Label:
+          text: 'О приложении'
+          text_size: self.width, self.height
+          font_size: self.height//3
+          halign:'left'
+          valign:'center'
+        Button:
+          text: 'Справка'
+          background_color: .5, .5, 1, .5
+          on_press: root.open_about_window()
+    AnchorLayout:
+      size_hint: 1,.2
+      anchor_x: 'center'
+      anchor_y: 'center'
+      Button:
+        text: 'Закрыть'
+        size_hint_x: .5
+        on_press: root.dismiss()
 
 <Row>:
   size_hint_y: None
@@ -125,17 +250,15 @@
 
 <Elliptic>:
   orientation: 'vertical'
+  curve_data:curve_data
   action: action
   dropdown: dropdown
   input1: input1
   input2: input2
   result_input: result_input
-  curve_data:curve_data
-
   on_parent:
     self.on_create()
     self.dropdown.dismiss()
-    root.inputs_update()
 
   CustomDropDown:
     id: dropdown
@@ -164,7 +287,7 @@
       CustomTextInput:
         id:curve_data
         hint_text: 'p(a,b)'
-        on_focus: root.inputs_update()
+        on_text: root.inputs_update()
         font_size: self.height//1.75
 
   BoxLayout:
@@ -185,19 +308,18 @@
           CustomTextInput:
             id: input1
             hint_text: 'x,y'
-            on_focus: root.inputs_update()
+            on_text: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           CustomTextInput:
             id: input2
             hint_text: 'x,y'
-            on_focus: root.inputs_update()
+            on_text: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
           ReadOnlyTextInput:
             id: result_input
             hint_text:'Результат'
-            on_focus: root.inputs_update()
             text_size: self.width, self.height
             font_size: self.height//2
         BoxLayout:
@@ -211,14 +333,11 @@
             background_color: .14,.14,.17, 1
             font_size: self.height//2
             on_release:
-              root.inputs_update()
               setattr(root.dropdown,'max_height',self.height//0.75)
               root.dropdown.open(self)
           Button:
             text: '='
-            on_press:
-              root.inputs_update()
-              root.result()
+            on_press: root.result()
             background_color: 1, 0.2, 0.1, .9
 
   BoxLayout:
@@ -234,6 +353,7 @@
   orientation: 'vertical'
   story:story
   entry: entry
+  entry_scroller:entry_scroller
 
   BoxLayout:
     orientation: 'vertical'
@@ -248,18 +368,25 @@
         size_hint_y: None
         height: self.minimum_height
         orientation: "vertical"
-
-    Label:
-      id: entry
-      text: '0'
-      size_hint_y: 0.35
-      text_size: self.width, self.height
-      font_size: self.height
-      max_lines:1
-      shorten: True
-      shorten_from: 'left'
-      halign: 'right'
-      valign: 'bottom'
+    AnchorLayout:
+      size_hint_y:.4
+      anchor_x: 'right'
+      anchor_y: 'center'
+      ScrollView:
+        id: entry_scroller
+        do_scroll_y: False
+        scroll_x: 1
+        size_hint: None, 1
+        width: root.entry.size[0]
+        Label:
+          id: entry
+          text: '0'
+          size_hint_x: None
+          size: self.texture_size[0],self.height
+          text_size: None, self.height
+          font_size: self.height
+          on_size:
+            root.scroll_sizer()
 
   GridLayout:
     canvas.before:
@@ -280,8 +407,7 @@
       on_press: root.add_operation(self)
     CustomButton:
       functions: ['φ(x)','F(N)']
-      on_long_press: root.switch_key(self)
-      on_press: root.add_number(self)
+      on_short_press: root.add_number(self)
     Button:
       text: 'x-¹'
       on_press: root.add_operation(self)
@@ -319,8 +445,7 @@
       on_press: root.add_number(self)
     CustomButton:
       functions: ['НОД','НОК']
-      on_long_press: root.switch_key(self)
-      on_press: root.add_number(self)
+      on_short_press: root.add_number(self)
 
     Button:
       text: '+'
@@ -357,7 +482,7 @@
       on_press: root.result(self)
 
 RootWidget:
-  manager:manager
+  manager: manager
   canvas.before:
     Color:
       rgba: .1,.1,.13, 1
@@ -365,17 +490,39 @@ RootWidget:
       pos: self.pos
       size: self.size
   orientation: 'vertical'
+
   BoxLayout:
-    size_hint:1,0.07
-    spacing: 10
-    padding: [self.width//30,self.height//20,self.width//30,0]
-    CustomToggleButton:
-      state:'down'
-      text: root.screens[0]
-      on_press: root.switch_screen(self)
-    CustomToggleButton:
-      text: root.screens[1]
-      on_press: root.switch_screen(self)
+    size_hint_y: .07
+
+    padding: [self.width//40,self.height//20,self.width//50,3]
+    BoxLayout:
+      size_hint_x: .925
+      spacing: self.width//50
+      CustomToggleButton:
+        state:'down'
+        group:'calculators'
+        text: root.screens[0]
+        on_press: root.switch_screen(self)
+
+      CustomToggleButton:
+        group:'calculators'
+        text: root.screens[1]
+        on_press: root.switch_screen(self)
+
+    Button:
+      def_set_img: def_set_img
+      size_hint_x: .075
+      background_color: 0,0,0,0
+      on_press: root.open_settings_popup()
+      Image:
+        id: def_set_img
+        source: 'settings64.png'
+        allow_stretch: True
+        size_hint: None,None
+        width: self.parent.width
+        height: self.parent.height
+        y: self.parent.y
+        x: self.parent.x
 
   ScreenManager:
     id: manager
@@ -402,12 +549,11 @@ RootWidget:
   font_size: self.height//3
 
 <CustomToggleButton>:
-  group:'calculators'
   allow_no_selection:False
   font_size: self.height//2.2
   background_normal: ''
   background_down: ''
-  background_color: .1,.1,.13, 0#1, 1, 1,.1
+  background_color: .1,.1,.13, 0
   canvas.after:
     Color:
       rgba: root.can_color
