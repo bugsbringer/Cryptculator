@@ -4,39 +4,29 @@
   current_size: current_size
   percent: percent
   total_size: total_size
-  info:info
 
-  title: 'Доступно обновление'
+  title: 'Доступно обновление '+app.git_version
   title_align: 'center'
   auto_dismiss: False
-  size_hint: .95,.6
+  size_hint: .95,.5
   separator_color: .5, .5, 1, .5
-  title_size: self.height//19
+  title_size: self.height//15
 
   BoxLayout:
     orientation: 'vertical'
     BoxLayout:
       orientation: 'vertical'
       BoxLayout:
-        size_hint_y: 0.8
+        size_hint_y: 0.35
         orientation: 'vertical'
         Label:
-          size_hint_y: 0.25
-          text: 'Текущая версия: ' + root.cur_version
-          text_size: self.width, self.height
-          font_size: self.height//2.5
-          halign:'left'
-        Label:
-          size_hint_y: 0.25
-          text: 'Новая версия: ' + root.git_version
-          text_size: self.width, self.height
-          font_size: self.height//2.5
-          halign:'left'
-        ReadOnlyTextInput:
           size_hint_y: 0.5
-          id: info
-          multiline: True
-          font_size: root.title_size//1.1
+          text: 'Текущая версия: ' + app.version
+          text_size: self.width, self.height
+          font_size: self.height//2.5
+          halign:'left'
+        Widget:
+          size_hint_y: 0.5
       BoxLayout:
         size_hint_y: 0.2
         orientation: 'vertical'
@@ -68,7 +58,7 @@
             halign:'right'
 
     BoxLayout:
-      size_hint_y: .25
+      size_hint_y: .35
       padding: self.width//50
       spacing: self.width//25
       Button:
@@ -81,42 +71,10 @@
         on_release: root.download()
         background_color: .5, .5, 1, .5
 
-<LastUpdateInfoPopup>:
-  title: 'Что нового:'
+<SimpleInformPopup>:
   title_align: 'center'
   auto_dismiss: False
   size_hint: 1,.75
-  separator_color: .5, .5, 1, .5
-  title_size: self.height//25
-
-  BoxLayout:
-    orientation: 'vertical'
-    spacing: 15
-    BoxLayout:
-      size_hint: 1,.88
-      padding: 0,10
-      ScrollView:
-        Label:
-          markup: True
-          text: root.information
-          font_size: root.title_size//1.2
-          size_hint: None, None
-          size: self.texture_size
-    AnchorLayout:
-      size_hint: 1,.12
-      anchor_x: 'center'
-      anchor_y: 'center'
-      Button:
-        text: 'Окей'
-        size_hint_x: .5
-        on_release: root.dismiss(self)
-        background_color: .5, .5, 1, .5
-
-<AboutPopup>:
-  title: 'О приложении'
-  title_align: 'center'
-  auto_dismiss: False
-  size_hint: 1, .85
   separator_color: .5, .5, 1, .5
   title_size: self.height//25
 
@@ -130,7 +88,7 @@
         Label:
           markup: True
           text: root.information
-          font_size: root.title_size//1.5
+          font_size: root.title_size // root.font_scale
           size_hint: None, None
           size: self.texture_size
     AnchorLayout:
@@ -139,7 +97,7 @@
       anchor_y: 'center'
       Button:
         text: 'Окей'
-        size_hint_x: .4
+        size_hint_x: .5
         on_release: root.dismiss(self)
         background_color: .5, .5, 1, .5
 
@@ -168,7 +126,7 @@
       BoxLayout:
         size_hint_y: .25
         Label:
-          text: 'Текущая версия: ' + root.current_version
+          text: 'Текущая версия: ' + app.version
           text_size: self.width, self.height
           font_size: self.height//3
           halign:'left'
